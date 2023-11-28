@@ -8,3 +8,4 @@ export * from './mail-queue.config';
 export * from './storage.config';
 export * from './log.config';
 export * from './auth.config';
+export * from './google.config';

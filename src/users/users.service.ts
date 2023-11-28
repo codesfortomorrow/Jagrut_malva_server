@@ -166,20 +166,27 @@ export class UsersService {
     firstname: string;
     lastname: string;
     email: string;
-    password: string;
+    password?: string;
     dialCode?: string;
     mobile?: string;
-    country: string;
+    country?: string;
+    googleId?: string;
+    profileImage?: string;
   }): Promise<User> {
-    if (await this.isEmailExist(data.email))
+    if (await this.isEmailExist(data.email)) {
       throw new Error('Email already exist');
-
-    if (data.mobile && (await this.isMobileExist(data.mobile)))
+    }
+    if (data.mobile && (await this.isMobileExist(data.mobile))) {
       throw new Error('Mobile already exist');
+    }
 
-    const { salt, hash } = this.hashPassword(data.password);
-    const passwordSalt = salt;
-    const passwordHash = hash;
+    let passwordSalt = null;
+    let passwordHash = null;
+    if (data.password) {
+      const { salt, hash } = this.hashPassword(data.password);
+      passwordSalt = salt;
+      passwordHash = hash;
+    }
 
     return await this.prisma.user.create({
       data: {
@@ -188,15 +195,61 @@ export class UsersService {
         email: data.email.toLowerCase(),
         dialCode: data.dialCode,
         mobile: data.mobile,
+        profileImage: data.profileImage,
         country: data.country,
         meta: {
           create: {
             passwordHash,
             passwordSalt,
+            googleId: data.googleId,
           },
         },
       },
     });
+  }
+
+  async getOrCreateByGoogle(data: {
+    googleId: string;
+    email: string;
+    firstname?: string;
+    lastname?: string;
+    profileImage?: string;
+  }): Promise<ValidatedUser> {
+    let user = await this.prisma.user.findFirst({
+      where: {
+        meta: {
+          googleId: data.googleId,
+        },
+      },
+    });
+    if (!user) {
+      const isEmailExist = await this.isEmailExist(data.email);
+      if (isEmailExist) {
+        user = await this.prisma.user.update({
+          data: {
+            meta: {
+              update: {
+                googleId: data.googleId,
+              },
+            },
+          },
+          where: { email: data.email.toLowerCase() },
+        });
+      } else {
+        user = await this.create({
+          firstname: data.firstname || '',
+          lastname: data.lastname || '',
+          email: data.email,
+          profileImage: data.profileImage,
+          googleId: data.googleId,
+        });
+      }
+    }
+
+    return {
+      id: user.id,
+      type: UserType.User,
+    };
   }
 
   async getProfile(userId: string): Promise<User> {

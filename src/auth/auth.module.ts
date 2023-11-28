@@ -4,7 +4,7 @@ import { ConfigType } from '@nestjs/config';
 import { jwtConfigFactory } from '@Config';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
-import { LocalStrategy } from './strategies';
+import { GoogleStrategy, LocalStrategy } from './strategies';
 import { AdminModule } from '../admin';
 import { UsersModule } from '../users';
 import { OtpModule } from '../otp';
@@ -23,7 +23,7 @@ import { OtpModule } from '../otp';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, LocalStrategy],
+  providers: [AuthService, LocalStrategy, GoogleStrategy],
   exports: [AuthService],
 })
 export class AuthModule {}

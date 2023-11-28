@@ -9,6 +9,8 @@ import {
   Body,
   BadRequestException,
   UnprocessableEntityException,
+  Get,
+  Redirect,
 } from '@nestjs/common';
 import { CookieOptions, Request, Response } from 'express';
 import { ApiBody, ApiTags } from '@nestjs/swagger';
@@ -28,7 +30,7 @@ import {
   InvalidVerifyCodeResponse,
   ValidAuthResponse,
 } from './auth.service';
-import { LocalAuthGuard } from './guards';
+import { GoogleOAuthGuard, LocalAuthGuard } from './guards';
 import {
   ForgotPasswordRequestDto,
   RegisterUserRequestDto,
@@ -197,6 +199,28 @@ export class AuthController extends BaseController {
     );
     this.setAuthCookie(res, accessToken, type);
     return { status: 'success' };
+  }
+
+  @UseGuards(GoogleOAuthGuard)
+  @Get('google')
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  googleOAuth() {}
+
+  @UseGuards(GoogleOAuthGuard)
+  @Get('google/callback')
+  @Redirect()
+  async googleWebOAuthCallback(
+    @Req() req: Request & { user: ValidatedUser },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { accessToken, type } = await this.authService.login(
+      req.user.id,
+      req.user.type,
+    );
+    this.setAuthCookie(res, accessToken, type);
+    return {
+      url: this.appConfig.appWebUrl as string,
+    };
   }
 
   @UseGuards(JwtAuthGuard)
