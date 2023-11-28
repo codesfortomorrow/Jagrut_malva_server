@@ -2,7 +2,7 @@ import dayjs from 'dayjs';
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { Otp, OtpTransport, Prisma } from '@prisma/client';
-import { otpConfigFactory, appConfigFactory } from '@Config';
+import { otpConfigFactory } from '@Config';
 import { MailService, MailTemplate, UtilsService } from '@Common';
 import { PrismaService } from '../prisma';
 
@@ -24,8 +24,6 @@ export class OtpService {
   constructor(
     @Inject(otpConfigFactory.KEY)
     private readonly config: ConfigType<typeof otpConfigFactory>,
-    @Inject(appConfigFactory.KEY)
-    private readonly appConfig: ConfigType<typeof appConfigFactory>,
     private readonly prisma: PrismaService,
     private readonly utilsService: UtilsService,
     private readonly mailService: MailService,
@@ -41,7 +39,9 @@ export class OtpService {
   }
 
   private generateCode(length: number): string {
-    if (!this.utilsService.isProduction()) return this.config.default;
+    if (!this.utilsService.isProductionApp()) {
+      return this.config.default;
+    }
 
     const chars = '0123456789';
     let code = '';
@@ -96,30 +96,23 @@ export class OtpService {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     data: { code: string; timeout: number },
   ): Promise<void> {
-    if (!this.utilsService.isProduction()) return;
+    if (!this.utilsService.isProductionApp()) return;
   }
 
   private async sendEmail(
     target: string,
-    data: {
-      code: string;
-      timeout: number;
-      username?: string;
-      platformName?: string;
-    },
+    data: { code: string; timeout: number },
   ): Promise<void> {
-    if (!this.utilsService.isProduction()) return;
+    if (!this.utilsService.isProductionApp()) return;
 
     await this.mailService.send({
       to: target,
       subject: 'Verification Code',
       mailBody: {
-        template: MailTemplate.VERIFICATION_CODE,
+        template: MailTemplate.VerificationCode,
         data: {
           code: data.code,
           expirationTime: this.utilsService.msToHuman(data.timeout),
-          username: data.username,
-          platformName: data.platformName,
         },
       },
     });
@@ -130,19 +123,13 @@ export class OtpService {
     transport: OtpTransport,
     code: string,
     timeout: number,
-    username?: string,
   ): Promise<void> {
     if (transport === OtpTransport.Mobile) {
       return await this.sendSMS(target, { code, timeout });
     }
 
     if (transport === OtpTransport.Email) {
-      return await this.sendEmail(target, {
-        code,
-        timeout,
-        username,
-        platformName: this.appConfig.platformName,
-      });
+      return await this.sendEmail(target, { code, timeout });
     }
 
     throw new Error(
@@ -159,7 +146,6 @@ export class OtpService {
       timeout?: number;
       blockTimeout?: number;
     },
-    username?: string,
   ): Promise<SendCodeResponse> {
     const config = {
       ...this.config,
@@ -172,7 +158,10 @@ export class OtpService {
     let otp = await this.find(target, transport);
 
     if (!otp) {
-      const code = this.generateCode(config.length);
+      const code =
+        transport === OtpTransport.Mobile
+          ? this.config.default
+          : this.generateCode(config.length);
       otp = await this.prisma.otp.create({
         data: {
           code,
@@ -181,13 +170,7 @@ export class OtpService {
           transport: transport,
         },
       });
-      await this.sendCodeOnTarget(
-        target,
-        transport,
-        code,
-        config.timeout,
-        username,
-      );
+      await this.sendCodeOnTarget(target, transport, code, config.timeout);
     } else {
       const isBlockTimeout = this.isBlockTimeout(
         otp.lastSentAt,

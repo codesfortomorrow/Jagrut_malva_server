@@ -1,21 +1,29 @@
+import { Command } from 'commander';
 import { PrismaClient } from '@prisma/client';
 import { isEmail } from 'class-validator';
 import { admin } from './seeds/admin.seed';
 
+const program = new Command();
+program.option('--seed-only <name>', 'Specify a seed name').parse(process.argv);
+
 const prisma = new PrismaClient();
 
 async function main() {
+  const options = program.opts();
+
   // Seed admin default credentials
-  if (
-    isEmail(admin.email) &&
-    admin.meta?.create?.passwordHash &&
-    admin.meta.create.passwordSalt
-  ) {
-    await prisma.user.create({
-      data: admin,
-    });
-  } else {
-    console.error(new Error('Invalid default admin credentials found'));
+  if (!options.seedOnly || options.seedOnly === 'admin') {
+    if (
+      isEmail(admin.email) &&
+      admin.meta?.create?.passwordHash &&
+      admin.meta.create.passwordSalt
+    ) {
+      await prisma.admin.create({
+        data: admin,
+      });
+    } else {
+      console.error(new Error('Invalid default admin credentials found'));
+    }
   }
 }
 

@@ -1,7 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
-import { OtpTransport, User, UserMeta, UserType } from '@prisma/client';
-import { StorageService, UtilsService, ValidatedUser } from '@Common';
+import {
+  OtpTransport,
+  Prisma,
+  User,
+  UserMeta,
+  UserStatus,
+} from '@prisma/client';
+import { StorageService, UserType, UtilsService, ValidatedUser } from '@Common';
 import { userConfigFactory } from '@Config';
 import { PrismaService } from '../prisma';
 import { OtpService, SendCodeResponse, VerifyCodeResponse } from '../otp';
@@ -16,6 +22,16 @@ export class UsersService {
     private readonly storageService: StorageService,
     private readonly otpService: OtpService,
   ) {}
+
+  private getProfileImage(user: User): string | null {
+    if (user.profileImage) {
+      return this.storageService.getFileUrl(
+        user.profileImage,
+        this.config.profileImagePath,
+      );
+    }
+    return null;
+  }
 
   private async isEmailExist(
     email: string,
@@ -79,10 +95,10 @@ export class UsersService {
     return /^[a-z][a-z0-9_]{3,20}$/.test(username);
   }
 
-  async getById(id: string): Promise<User | null> {
-    return await this.prisma.user.findUnique({
+  async getById(userId: string): Promise<User> {
+    return await this.prisma.user.findUniqueOrThrow({
       where: {
-        id,
+        id: userId,
       },
     });
   }
@@ -95,14 +111,6 @@ export class UsersService {
     });
   }
 
-  async getByUsername(username: string): Promise<User | null> {
-    return await this.prisma.user.findUnique({
-      where: {
-        username,
-      },
-    });
-  }
-
   async getByMobile(mobile: string): Promise<User | null> {
     return await this.prisma.user.findUnique({
       where: {
@@ -111,10 +119,20 @@ export class UsersService {
     });
   }
 
-  async getMetaById(userId: string): Promise<UserMeta | null> {
-    return await this.prisma.userMeta.findUnique({
+  async getMetaById(userId: string): Promise<UserMeta> {
+    return await this.prisma.userMeta.findUniqueOrThrow({
       where: {
         userId,
+      },
+    });
+  }
+
+  async getMetaByEmail(email: string): Promise<UserMeta> {
+    return await this.prisma.userMeta.findFirstOrThrow({
+      where: {
+        user: {
+          email: email.toLowerCase(),
+        },
       },
     });
   }
@@ -127,8 +145,6 @@ export class UsersService {
     if (!user) return null;
 
     const userMeta = await this.getMetaById(user.id);
-    if (!userMeta) return null;
-
     const passwordHash = this.utilsService.hashPassword(
       password,
       userMeta.passwordSalt || '',
@@ -136,40 +152,43 @@ export class UsersService {
         ? userMeta.passwordHash.length / 2
         : this.config.passwordHashLength,
     );
-
     if (userMeta.passwordHash === passwordHash) {
       return {
         id: user.id,
-        type: user.type,
+        type: UserType.User,
       };
     }
 
     return false;
   }
 
-  async create(
-    firstname: string,
-    lastname: string,
-    email: string,
-    password: string,
-    mobile?: string,
-  ): Promise<User> {
-    if (await this.isEmailExist(email)) throw new Error('Email already exist');
+  async create(data: {
+    firstname: string;
+    lastname: string;
+    email: string;
+    password: string;
+    dialCode?: string;
+    mobile?: string;
+    country: string;
+  }): Promise<User> {
+    if (await this.isEmailExist(data.email))
+      throw new Error('Email already exist');
 
-    if (mobile && (await this.isMobileExist(mobile)))
+    if (data.mobile && (await this.isMobileExist(data.mobile)))
       throw new Error('Mobile already exist');
 
-    const { salt, hash } = this.hashPassword(password);
+    const { salt, hash } = this.hashPassword(data.password);
     const passwordSalt = salt;
     const passwordHash = hash;
 
     return await this.prisma.user.create({
       data: {
-        firstname,
-        lastname,
-        email: email.toLowerCase(),
-        type: UserType.User,
-        mobile,
+        firstname: data.firstname,
+        lastname: data.lastname,
+        email: data.email.toLowerCase(),
+        dialCode: data.dialCode,
+        mobile: data.mobile,
+        country: data.country,
         meta: {
           create: {
             passwordHash,
@@ -180,54 +199,102 @@ export class UsersService {
     });
   }
 
-  getProfileImage(user: User): string | null {
-    if (user.profileImage) {
-      return this.storageService.getFileUrl(
-        user.profileImage,
-        this.config.profileImagePath,
-      );
-    }
-    return null;
-  }
-
   async getProfile(userId: string): Promise<User> {
     const user = await this.getById(userId);
-    if (!user) throw new Error('User not found');
     user.profileImage = this.getProfileImage(user);
     return user;
   }
 
   async updateProfileDetails(
-    userId: string,
-    username?: string,
-    firstname?: string,
-    lastname?: string,
-    email?: string,
-    mobile?: string,
+    data: {
+      userId: string;
+      username?: string;
+      firstname?: string;
+      lastname?: string;
+      email?: string;
+      dialCode?: string;
+      mobile?: string;
+      country?: string;
+    },
+    options?: { tx?: Prisma.TransactionClient },
   ): Promise<User> {
-    if (email && (await this.isEmailExist(email, userId)))
+    const client = options?.tx ? options.tx : this.prisma;
+
+    if (data.email && (await this.isEmailExist(data.email, data.userId))) {
       throw new Error('Email already exist');
-
-    if (username && !this.isValidUsername(username))
+    }
+    if (data.username && !this.isValidUsername(data.username)) {
       throw new Error('Invalid username');
-
-    if (username && (await this.isUsernameExist(username, userId)))
+    }
+    if (
+      data.username &&
+      (await this.isUsernameExist(data.username, data.userId))
+    ) {
       throw new Error('Username already exist');
-
-    if (mobile && (await this.isMobileExist(mobile, userId)))
+    }
+    if (data.mobile && (await this.isMobileExist(data.mobile, data.userId))) {
       throw new Error('Mobile already exist');
+    }
 
-    return await this.prisma.user.update({
+    return await client.user.update({
       data: {
-        username: username && username.toLowerCase(),
-        firstname,
-        lastname,
-        email: email && email.toLowerCase(),
-        mobile,
+        username: data.username && data.username.toLowerCase(),
+        firstname: data.firstname,
+        lastname: data.lastname,
+        email: data.email && data.email.toLowerCase(),
+        dialCode: data.dialCode,
+        mobile: data.mobile,
+        country: data.country,
       },
       where: {
-        id: userId,
+        id: data.userId,
       },
+    });
+  }
+
+  async updateProfileDetailsByAdministrator(data: {
+    userId: string;
+    username?: string;
+    firstname?: string;
+    lastname?: string;
+    email?: string;
+    dialCode?: string;
+    mobile?: string;
+    country?: string;
+    password?: string;
+  }) {
+    await this.prisma.$transaction(async (tx) => {
+      const user = await this.updateProfileDetails(
+        {
+          userId: data.userId,
+          username: data.username,
+          firstname: data.firstname,
+          lastname: data.lastname,
+          email: data.email,
+          dialCode: data.dialCode,
+          mobile: data.mobile,
+          country: data.country,
+        },
+        { tx },
+      );
+
+      if (data.password) {
+        const { salt, hash } = this.hashPassword(data.password);
+        const passwordSalt = salt;
+        const passwordHash = hash;
+
+        await this.prisma.userMeta.update({
+          data: {
+            passwordHash,
+            passwordSalt,
+          },
+          where: {
+            userId: data.userId,
+          },
+        });
+      }
+
+      return user;
     });
   }
 
@@ -235,10 +302,7 @@ export class UsersService {
     userId: string,
     profileImage: string,
   ): Promise<{ profileImage: string | null }> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
-    if (!user) throw new Error('User not found');
+    const user = await this.getById(userId);
 
     // Remove current profile image from storage
     if (user.profileImage) {
@@ -265,10 +329,7 @@ export class UsersService {
     newPassword: string,
   ): Promise<User> {
     const user = await this.getById(userId);
-    if (!user) throw new Error('User not found');
-
     const userMeta = await this.getMetaById(user.id);
-    if (!userMeta) throw new Error('User meta not found');
 
     const hashedPassword = this.utilsService.hashPassword(
       oldPassword,
@@ -297,7 +358,7 @@ export class UsersService {
     return user;
   }
 
-  async sendPasswordResetCode(
+  async sendResetPasswordVerificationCode(
     email?: string,
     mobile?: string,
   ): Promise<SendCodeResponse> {
@@ -310,20 +371,10 @@ export class UsersService {
     let response: SendCodeResponse | undefined | null;
 
     if (mobile) {
-      response = await this.otpService.send(
-        mobile,
-        OtpTransport.Mobile,
-        undefined,
-        user.firstname,
-      );
+      response = await this.otpService.send(mobile, OtpTransport.Mobile);
     }
     if (email) {
-      response = await this.otpService.send(
-        email,
-        OtpTransport.Email,
-        undefined,
-        user.firstname,
-      );
+      response = await this.otpService.send(email, OtpTransport.Email);
     }
     if (!response) throw new Error('Unexpected error');
     return response;
@@ -337,7 +388,6 @@ export class UsersService {
   ): Promise<User> {
     // Get user
     let user: User | null | undefined;
-
     if (email) {
       user = await this.getByEmail(email);
     }
@@ -373,5 +423,116 @@ export class UsersService {
       where: { userId: user.id },
     });
     return user;
+  }
+
+  async setStatus(userId: string, status: UserStatus): Promise<User> {
+    return await this.prisma.user.update({
+      data: { status },
+      where: {
+        id: userId,
+      },
+    });
+  }
+
+  async getAll(options?: {
+    search?: string;
+    skip?: number;
+    take?: number;
+  }): Promise<{
+    count: number;
+    skip: number;
+    take: number;
+    data: User[];
+  }> {
+    const where: Prisma.UserWhereInput = {};
+    if (options?.search) {
+      const search = options.search.trim().split(' ');
+      if (search.length) {
+        where.AND = [];
+
+        for (const part of search) {
+          where.AND.push({
+            OR: [
+              {
+                firstname: {
+                  contains: part,
+                  mode: 'insensitive',
+                },
+              },
+              {
+                lastname: {
+                  contains: part,
+                  mode: 'insensitive',
+                },
+              },
+              {
+                username: {
+                  contains: part,
+                  mode: 'insensitive',
+                },
+              },
+              {
+                email: {
+                  contains: part,
+                  mode: 'insensitive',
+                },
+              },
+            ],
+          });
+        }
+      } else {
+        where.OR = [
+          {
+            firstname: {
+              contains: options.search,
+              mode: 'insensitive',
+            },
+          },
+          {
+            lastname: {
+              contains: options.search,
+              mode: 'insensitive',
+            },
+          },
+          {
+            username: {
+              contains: options.search,
+              mode: 'insensitive',
+            },
+          },
+          {
+            email: {
+              contains: options.search,
+              mode: 'insensitive',
+            },
+          },
+        ];
+      }
+    }
+
+    const totalUsers = await this.prisma.user.count({
+      where,
+    });
+    const users = await this.prisma.user.findMany({
+      where,
+      orderBy: { createdAt: Prisma.SortOrder.desc },
+      skip: options?.skip || 0,
+      take: options?.take || 10,
+    });
+    const response = await Promise.all(
+      users.map(async (user) => {
+        return {
+          ...user,
+          profileImage: this.getProfileImage(user),
+        };
+      }),
+    );
+
+    return {
+      count: totalUsers,
+      skip: options?.skip || 0,
+      take: options?.take || 10,
+      data: response,
+    };
   }
 }

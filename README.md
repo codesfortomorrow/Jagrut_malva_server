@@ -12,12 +12,11 @@ To be specified.
 
 ## Installation
 
-Skip this section for docker based production deployment
+_Note: Skip this section for docker based production deployment_
 
 ```bash
 # install dependencies
 $ npm install
-
 ```
 
 ## Setup
@@ -26,35 +25,39 @@ Copy the contents of example.env to create .env in the root and update env varia
 
 First you need to run and initialize databases.
 
-### For non docker environment
+> For non docker environment
 
 `DATABASE_URL`, `REDIS_URI` in .env will be use to connect with databases, Please make sure you have correct connection uri here.
 
 ```bash
-# This command will create db & deploy migrations on target database
+# development
+$ npm run db:init
+
+# production
 $ npm run db:migrate:deploy
+$ npm run db:seed
 ```
 
-### For docker environment
+> For docker environment
 
-Notes: If you already have running required database containers then you can follow same setup as mentioned above for non docker environment.
+_Note: If you already have running required database containers then you can follow same setup as mentioned above for non docker environment._
 
 `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_PORT`, `REDIS_PORT`, `REDIS_PASSWORD` will be use to create database containers with authentication credential from .env, So make sure `DATABASE_URL` and `REDIS_URI` have exact same user, password and port for connection.
 
 To run production database containers you need to set `POSTGRES_DATA_VOLUME` and `REDIS_DATA_VOLUME` value to be set in .env file to mount the volume into host machine.
 
 ```bash
-# run the database containers for development (Ignore this for production)
+# development
 $ npm run dev:db
+$ npm run db:init
 
-# run the database containers for production (Ignore for development)
+# production
 $ npm run prod:db
-
-# initialize database
 $ npm run db:migrate:deploy
+$ npm run db:seed
 ```
 
-For convenience to switch between docker environment to local environment & testing, Please create host entry in your machine with following-
+For convenience to switch between docker environment to local environment & testing, Please create host entry in your machine with following:-
 
 ```
 127.0.0.1 postgres
@@ -64,11 +67,11 @@ For convenience to switch between docker environment to local environment & test
 ## Running the server on docker environment
 
 ```bash
-# watch mode (development)
+# development
 $ npm run dev
 $ npm run dev:stop # To shut down containers
 
-# build & run without watch mode (production)
+# production
 $ npm run prod
 $ npm run prod:stop # To shut down containers
 ```
@@ -77,12 +80,9 @@ $ npm run prod:stop # To shut down containers
 
 ```bash
 # development
-$ npm run start
-
-# watch mode
 $ npm run start:dev
 
-# production mode
+# production
 $ npm run start:prod
 ```
 
@@ -102,16 +102,25 @@ $ npm run test:cov
 ## Migrate/Sync Database Schema
 
 ```bash
+# initialize database - push schema, add constraints & seed database
+$ npm run db:init
+
 # preview schema
 $ npm run db:studio
 
-# Seed database
+# seed database
 $ npm run db:seed
 
-# Generate client with schema
+# seed specific seed file into the database
+$ npm run db:seed:only <name> # i.e. `npm run db:seed:only admin` to run prisma/seeds/admin.seed.ts
+
+# add constraints in schema (Note: Not required, If not using `db:schema:push` on staging or production env)
+$ npm run db:schema:constraints
+
+# generate client with schema
 $ npm run db:client:generate
 
-# Push schema changes to the database without migration
+# push schema changes to the database without migration
 $ npm run db:schema:push
 
 # generate migration for new changes

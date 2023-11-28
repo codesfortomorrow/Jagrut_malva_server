@@ -1,43 +1,21 @@
 import { Job } from 'bullmq';
 import { SentMessageInfo } from 'nodemailer/lib/smtp-transport';
-import { Inject, OnModuleInit } from '@nestjs/common';
+import { Inject } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
-import {
-  OnQueueEvent,
-  OnWorkerEvent,
-  Processor,
-  WorkerHost,
-} from '@nestjs/bullmq';
+import { Processor } from '@nestjs/bullmq';
 import { mailQueueConfigFactory } from '@Config';
 import { MAIL_QUEUE } from '../common.constants';
 import { MailService, SendMessagePayload } from '../providers';
+import { BaseProcessor } from '../base';
 
 @Processor(MAIL_QUEUE)
-export class MailProcessor extends WorkerHost implements OnModuleInit {
+export class MailProcessor extends BaseProcessor {
   constructor(
     @Inject(mailQueueConfigFactory.KEY)
-    private readonly config: ConfigType<typeof mailQueueConfigFactory>,
+    readonly config: ConfigType<typeof mailQueueConfigFactory>,
     private readonly mailService: MailService,
   ) {
-    super();
-  }
-
-  onModuleInit() {
-    this.worker.concurrency = this.config.concurrency;
-  }
-
-  async onApplicationShutdown(): Promise<void> {
-    await this.worker.close();
-  }
-
-  @OnWorkerEvent('error')
-  onWorkerError(err: Error): void {
-    console.error('Mail worker error:', err);
-  }
-
-  @OnQueueEvent('error')
-  onQueueError(err: Error): void {
-    console.error('Mail queue error:', err);
+    super(MailProcessor.name, config.concurrency);
   }
 
   async process(

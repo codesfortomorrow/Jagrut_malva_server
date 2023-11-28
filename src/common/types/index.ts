@@ -1,6 +1,5 @@
 import { Request } from 'express';
 import { IsEnum, IsNumber, IsString } from 'class-validator';
-import { UserType } from '@prisma/client';
 
 export enum Environment {
   Development = 'development',
@@ -11,6 +10,9 @@ export enum Environment {
 export class EnvironmentVariables {
   @IsEnum(Environment)
   NODE_ENV: Environment;
+
+  @IsEnum(Environment)
+  APP_ENV: Environment;
 
   @IsNumber()
   PORT: number;
@@ -62,6 +64,11 @@ export interface File {
   path: string;
 }
 
+export enum UserType {
+  User = 'user',
+  Admin = 'admin',
+}
+
 export interface JwtPayload {
   readonly sub: string;
   readonly type: UserType;
@@ -86,10 +93,5 @@ export interface AuthenticatedRequest extends Request {
 }
 
 export enum MailTemplate {
-  VERIFICATION_CODE = 'verification-code',
-}
-
-export enum Sort {
-  Desc = 'desc',
-  Asc = 'asc',
+  VerificationCode = 'verification-code',
 }

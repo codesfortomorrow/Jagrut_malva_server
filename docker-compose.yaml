@@ -23,13 +23,13 @@ services:
     volumes:
       - ${REDIS_DATA_VOLUME}:/data
   nestjs-app:
-    image: nestjs-app
+    image: nestjs-app-${APP_ENV}
     build:
       context: .
       target: nestjs-app
       args:
         - PORT:${PORT}
-    container_name: nestjs-app
+    container_name: nestjs-app-${APP_ENV}
     restart: unless-stopped
     ports:
       - ${PORT}:${PORT}

@@ -14,7 +14,14 @@ export class ResetPasswordRequestDto {
   newPassword: string;
 
   @IsOptional()
-  @IsMobilePhone(undefined, { strictMode: true })
+  @IsMobilePhone(
+    undefined,
+    { strictMode: true },
+    {
+      message:
+        'The mobile number you entered is invalid, please provide a valid mobile number',
+    },
+  )
   mobile?: string;
 
   @IsOptional()

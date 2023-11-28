@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { MulterModule } from '@nestjs/platform-express';
 import { ScheduleModule } from '@nestjs/schedule';
 import { CommonModule, StorageService } from '@Common';
@@ -15,6 +16,7 @@ import { RedisModule } from './redis';
       }),
       inject: [StorageService],
     }),
+    EventEmitterModule.forRoot(),
     ScheduleModule.forRoot(),
     CommonModule,
     PrismaModule,

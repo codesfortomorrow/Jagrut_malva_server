@@ -5,6 +5,6 @@ export const otpConfigFactory = registerAs('otp', () => ({
   length: 6,
   maxAttempt: 10,
   maxRetries: 5,
-  timeout: 300000, // 5 min
+  timeout: 120000, // 2 min
   blockTimeout: 86400000, // 24 hr
 }));

@@ -8,19 +8,25 @@ import {
   Inject,
   Body,
   BadRequestException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { CookieOptions, Request, Response } from 'express';
 import { ConfigType } from '@nestjs/config';
-import { OtpTransport, UserType } from '@prisma/client';
+import { OtpTransport } from '@prisma/client';
 import {
   AuthenticatedRequest,
   BaseController,
   JwtAuthGuard,
+  UserType,
   UtilsService,
   ValidatedUser,
 } from '@Common';
 import { appConfigFactory, authConfigFactory } from '@Config';
-import { AuthService } from './auth.service';
+import {
+  AuthService,
+  InvalidVerifyCodeResponse,
+  ValidAuthResponse,
+} from './auth.service';
 import { LocalAuthGuard } from './guards';
 import {
   ForgotPasswordRequestDto,
@@ -55,15 +61,15 @@ export class AuthController extends BaseController {
         options?.domain !== undefined
           ? options.domain
           : isProduction
-          ? this.appConfig.domain
-          : 'localhost',
+            ? this.appConfig.domain
+            : 'localhost',
       httpOnly: options?.httpOnly !== undefined ? options.httpOnly : true,
       sameSite:
         options?.sameSite !== undefined
           ? options.sameSite
           : isProduction
-          ? 'strict'
-          : 'none',
+            ? 'strict'
+            : 'none',
       secure: options?.secure !== undefined ? options.secure : true,
     });
   }
@@ -79,15 +85,15 @@ export class AuthController extends BaseController {
         options?.domain !== undefined
           ? options.domain
           : isProduction
-          ? this.appConfig.domain
-          : 'localhost',
+            ? this.appConfig.domain
+            : 'localhost',
       httpOnly: options?.httpOnly !== undefined ? options.httpOnly : true,
       sameSite:
         options?.sameSite !== undefined
           ? options.sameSite
           : isProduction
-          ? 'strict'
-          : 'none',
+            ? 'strict'
+            : 'none',
       secure: options?.secure !== undefined ? options.secure : true,
     });
   }
@@ -101,7 +107,7 @@ export class AuthController extends BaseController {
 
     this.setCookie(
       res,
-      `__${userType.toLocaleLowerCase()}AuthToken`,
+      this.utilsService.getCookiePrefix(userType) + 'authToken',
       accessToken,
       {
         expires: expirationTime,
@@ -109,24 +115,22 @@ export class AuthController extends BaseController {
       },
     );
 
-    this.setCookie(res, `${userType.toLocaleLowerCase()}LoggedIn`, 'true', {
-      expires: expirationTime,
-      httpOnly: false,
-    });
-  }
-
-  private async register(data: RegisterUserRequestDto) {
-    return await this.authService.registerUser(
-      data.firstname,
-      data.lastname,
-      data.email,
-      data.password,
-      data.mobile,
+    this.setCookie(
+      res,
+      this.utilsService.getCookiePrefix(userType) + 'isLoggedIn',
+      'true',
+      {
+        expires: expirationTime,
+        httpOnly: false,
+      },
     );
   }
 
   @Post('send-code')
   async sendCode(@Body() data: SendCodeRequestDto) {
+    if (data.mobile && !data.country) {
+      throw new BadRequestException();
+    }
     if (data.email) {
       return await this.authService.sendCode(
         data.email,
@@ -134,7 +138,6 @@ export class AuthController extends BaseController {
         data.type,
       );
     }
-
     if (data.mobile) {
       return await this.authService.sendCode(
         data.mobile,
@@ -144,25 +147,43 @@ export class AuthController extends BaseController {
     }
   }
 
-  @Post('web/register')
-  async webRegisterUser(
+  @Post('register')
+  async register(
     @Res({ passthrough: true }) res: Response,
     @Body() data: RegisterUserRequestDto,
   ) {
-    const { accessToken, type } = await this.register(data);
+    const response = await this.authService.registerUser({
+      firstname: data.firstname,
+      lastname: data.lastname,
+      email: data.email,
+      password: data.password,
+      dialCode: data.dialCode,
+      mobile: data.mobile,
+      country: data.country,
+      emailVerificationCode: data.emailVerificationCode,
+      mobileVerificationCode: data.mobileVerificationCode,
+    });
+
+    if (
+      (response as InvalidVerifyCodeResponse).email ||
+      (response as InvalidVerifyCodeResponse).mobile
+    ) {
+      throw new UnprocessableEntityException({
+        statusCode: 422,
+        message: 'Invalid verification code',
+        meta: response as InvalidVerifyCodeResponse,
+      });
+    }
+
+    const { accessToken, type } = response as ValidAuthResponse;
     this.setAuthCookie(res, accessToken, type);
     return { status: 'success' };
   }
 
-  @Post('native/register')
-  async nativeRegisterUser(@Body() data: RegisterUserRequestDto) {
-    return await this.register(data);
-  }
-
   @UseGuards(LocalAuthGuard)
   @HttpCode(200)
-  @Post('web/login')
-  async webLogin(
+  @Post('login')
+  async login(
     @Req() req: Request & { user: ValidatedUser },
     @Res({ passthrough: true }) res: Response,
   ) {
@@ -174,13 +195,6 @@ export class AuthController extends BaseController {
     return { status: 'success' };
   }
 
-  @UseGuards(LocalAuthGuard)
-  @HttpCode(200)
-  @Post('native/login')
-  async nativeLogin(@Req() req: Request & { user: ValidatedUser }) {
-    return await this.authService.login(req.user.id, req.user.type);
-  }
-
   @UseGuards(JwtAuthGuard)
   @Post('logout')
   async logout(
@@ -188,12 +202,20 @@ export class AuthController extends BaseController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const ctx = this.getContext(req);
-    this.removeCookie(res, `__${ctx.user.type.toLocaleLowerCase()}AuthToken`, {
-      httpOnly: true,
-    });
-    this.removeCookie(res, `${ctx.user.type.toLocaleLowerCase()}LoggedIn`, {
-      httpOnly: true,
-    });
+    this.removeCookie(
+      res,
+      this.utilsService.getCookiePrefix(ctx.user.type) + 'authToken',
+      {
+        httpOnly: true,
+      },
+    );
+    this.removeCookie(
+      res,
+      this.utilsService.getCookiePrefix(ctx.user.type) + 'isLoggedIn',
+      {
+        httpOnly: false,
+      },
+    );
     return { status: 'success' };
   }
 

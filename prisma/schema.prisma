@@ -10,11 +10,34 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum UserType {
-  User  @map("user")
-  Admin @map("admin")
+enum AdminStatus {
+  Active   @map("active")
+  Inactive @map("inactive")
 
-  @@map("user_type")
+  @@map("admin_status")
+}
+
+model Admin {
+  id           String      @id @default(uuid()) @db.Uuid
+  firstname    String
+  lastname     String
+  email        String      @unique
+  profileImage String?     @map("profile_image")
+  status       AdminStatus @default(Active)
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+  meta         AdminMeta?
+
+  @@map("admin")
+}
+
+model AdminMeta {
+  passwordSalt String? @map("password_salt")
+  passwordHash String? @map("password_hash")
+  admin        Admin   @relation(fields: [adminId], references: [id])
+  adminId      String  @unique() @map("admin_id") @db.Uuid
+
+  @@map("admin_meta")
 }
 
 enum UserStatus {
@@ -30,9 +53,11 @@ model User {
   lastname     String
   username     String?       @unique
   email        String        @unique
+  dialCode     String?       @map("dial_code")
   mobile       String?       @unique
   profileImage String?       @map("profile_image")
-  type         UserType
+  isVerified   Boolean       @default(false) @map("is_verified")
+  country      String
   status       UserStatus    @default(Active)
   createdAt    DateTime      @default(now()) @map("created_at")
   updatedAt    DateTime      @updatedAt @map("updated_at")
@@ -81,8 +106,8 @@ enum SettingType {
 }
 
 enum SettingContext {
-  User  @map("user")
-  Admin @map("admin")
+  User   @map("user")
+  System @map("System")
 
   @@map("setting_context")
 }
@@ -101,6 +126,7 @@ model Setting {
   parentId         Int?            @map("parent_id")
   options          SettingOption[]
   userSettings     UserSetting[]
+  systemSettings   SystemSetting[]
 
   @@unique([context, mappedTo])
   @@map("setting")
@@ -108,6 +134,7 @@ model Setting {
 
 model SettingOption {
   id        Int     @id @default(autoincrement())
+  text      String  @default("")
   value     String
   setting   Setting @relation(fields: [settingId], references: [id])
   settingId Int     @map("setting_id")
@@ -125,4 +152,13 @@ model UserSetting {
 
   @@id([userId, settingId])
   @@map("user_setting")
+}
+
+model SystemSetting {
+  selection Json
+  setting   Setting @relation(fields: [settingId], references: [id])
+  settingId Int     @map("setting_id")
+
+  @@id([settingId])
+  @@map("system_setting")
 }

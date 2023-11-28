@@ -1,9 +1,11 @@
 import crypto from 'crypto';
 import { customAlphabet } from 'nanoid';
 import _ from 'lodash';
+import { plainToInstance } from 'class-transformer';
+import { validateOrReject } from 'class-validator';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Environment, EnvironmentVariables } from '../types';
+import { Environment, EnvironmentVariables, UserType } from '../types';
 
 @Injectable()
 export class UtilsService {
@@ -13,6 +15,21 @@ export class UtilsService {
 
   isProduction(): boolean {
     return this.configService.get('NODE_ENV') === Environment.Production;
+  }
+
+  isProductionApp(): boolean {
+    if (this.isProduction()) {
+      return this.configService.get('APP_ENV') === Environment.Production;
+    }
+    return false;
+  }
+
+  getCookiePrefix(ut: UserType) {
+    if (!this.isProduction() || this.isProductionApp()) {
+      return `__${ut}__`;
+    } else {
+      return `${this.configService.get('APP_ENV')}__${ut}__`;
+    }
   }
 
   generateSalt(length = 16): string {
@@ -112,7 +129,58 @@ export class UtilsService {
       .join(', ');
   }
 
+  async transform<T extends object, V>(
+    cls: new (...args: any[]) => T,
+    plain: V,
+  ): Promise<T> {
+    const instance = plainToInstance(cls, plain, {
+      enableImplicitConversion: true,
+    });
+    await validateOrReject(instance, {
+      whitelist: true,
+      forbidUnknownValues: true,
+    });
+    return instance;
+  }
+
   async sleep(ms: number) {
     return await new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  async rerunnable<T>(
+    fn: () => Promise<T>,
+    maxRetries: number,
+    sleep?: number,
+  ): Promise<T> {
+    let attempt = 0;
+
+    do {
+      attempt++;
+      if (attempt > 1 && sleep) {
+        await this.sleep(sleep);
+      }
+
+      try {
+        return await fn();
+      } catch (err) {
+        if (attempt === maxRetries) {
+          throw err;
+        }
+      }
+    } while (attempt < maxRetries);
+
+    throw new Error('Unexpected error occurred');
+  }
+
+  async occrunnable<T>(fn: () => Promise<T>): Promise<T> {
+    do {
+      try {
+        return await fn();
+      } catch (err) {
+        if (err.code !== 'P2025') {
+          throw err;
+        }
+      }
+    } while (true);
   }
 }

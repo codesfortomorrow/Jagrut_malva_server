@@ -9,4 +9,3 @@ if [ "$current_branch" = "main" ] || [ "$current_branch" = "develop" ] || [ "$cu
 fi
 
 npm run lint-staged && npm run test && npm run test:e2e
-npm test

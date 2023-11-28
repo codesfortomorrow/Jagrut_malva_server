@@ -1,10 +1,9 @@
-import { Prisma, UserType } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 
-export const admin: Prisma.UserCreateInput = {
+export const admin: Prisma.AdminCreateInput = {
   firstname: '',
   lastname: '',
   email: process.env.ADMIN_EMAIL || '',
-  type: UserType.Admin,
   meta: {
     create: {
       passwordSalt: process.env.ADMIN_PASSWORD_SALT || '',

@@ -23,6 +23,29 @@ export class RegisterUserRequestDto {
   password: string;
 
   @IsOptional()
-  @IsMobilePhone(undefined, { strictMode: true })
+  @IsString()
+  @IsNotEmpty()
+  dialCode?: string;
+
+  @IsOptional()
+  @IsMobilePhone(
+    undefined,
+    { strictMode: true },
+    {
+      message:
+        'The mobile number you entered is invalid, please provide a valid mobile number',
+    },
+  )
   mobile?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  country: string;
+
+  @IsString()
+  emailVerificationCode: string;
+
+  @IsOptional()
+  @IsString()
+  mobileVerificationCode?: string;
 }

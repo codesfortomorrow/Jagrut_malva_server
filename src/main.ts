@@ -23,9 +23,12 @@ async function bootstrap() {
     appConfigFactory.KEY,
   );
 
-  app.use(bodyParser.json({ limit: appConfig.payloadSize }));
+  app.use(bodyParser.json({ limit: appConfig.httpPayloadMaxSize }));
   app.use(
-    bodyParser.urlencoded({ limit: appConfig.payloadSize, extended: true }),
+    bodyParser.urlencoded({
+      limit: appConfig.httpPayloadMaxSize,
+      extended: true,
+    }),
   );
   const origins = appConfig.domain
     ? [

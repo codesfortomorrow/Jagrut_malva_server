@@ -4,12 +4,14 @@ import { ConfigType } from '@nestjs/config';
 import { jwtConfigFactory } from '@Config';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
+import { LocalStrategy } from './strategies';
+import { AdminModule } from '../admin';
 import { UsersModule } from '../users';
 import { OtpModule } from '../otp';
-import { LocalStrategy } from './strategies';
 
 @Module({
   imports: [
+    AdminModule,
     UsersModule,
     OtpModule,
     JwtModule.registerAsync({

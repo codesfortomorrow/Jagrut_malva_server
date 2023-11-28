@@ -27,6 +27,23 @@ export class UpdateProfileDetailsRequestDto {
   email?: string;
 
   @IsOptional()
-  @IsMobilePhone(undefined, { strictMode: true })
+  @IsString()
+  @IsNotEmpty()
+  dialCode?: string;
+
+  @IsOptional()
+  @IsMobilePhone(
+    undefined,
+    { strictMode: true },
+    {
+      message:
+        'The mobile number you entered is invalid, please provide a valid mobile number',
+    },
+  )
   mobile?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  country?: string;
 }
