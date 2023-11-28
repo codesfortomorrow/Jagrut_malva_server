@@ -11,6 +11,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { CookieOptions, Request, Response } from 'express';
+import { ApiBody, ApiTags } from '@nestjs/swagger';
 import { ConfigType } from '@nestjs/config';
 import { OtpTransport } from '@prisma/client';
 import {
@@ -33,8 +34,10 @@ import {
   RegisterUserRequestDto,
   ResetPasswordRequestDto,
   SendCodeRequestDto,
+  LoginRequestDto,
 } from './dto';
 
+@ApiTags('Auth')
 @Controller('auth')
 export class AuthController extends BaseController {
   constructor(
@@ -180,6 +183,7 @@ export class AuthController extends BaseController {
     return { status: 'success' };
   }
 
+  @ApiBody({ type: () => LoginRequestDto })
   @UseGuards(LocalAuthGuard)
   @HttpCode(200)
   @Post('login')

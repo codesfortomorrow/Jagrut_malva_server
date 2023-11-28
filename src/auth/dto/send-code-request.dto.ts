@@ -1,3 +1,4 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsEmail,
   IsEnum,
@@ -7,9 +8,12 @@ import {
   IsString,
 } from 'class-validator';
 
-export enum SendCodeRequestType {}
+export enum SendCodeRequestType {
+  Register = 'register',
+}
 
 export class SendCodeRequestDto {
+  @ApiPropertyOptional()
   @IsOptional()
   @IsMobilePhone(
     undefined,
@@ -21,15 +25,18 @@ export class SendCodeRequestDto {
   )
   mobile?: string;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsEmail()
   email?: string;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   @IsNotEmpty()
   country?: string;
 
+  @ApiProperty({ enum: SendCodeRequestType })
   @IsEnum(SendCodeRequestType)
   type: SendCodeRequestType;
 }

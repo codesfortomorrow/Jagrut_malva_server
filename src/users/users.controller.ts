@@ -12,6 +12,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { UserStatus } from '@prisma/client';
 import {
   AuthenticatedRequest,
@@ -26,10 +27,12 @@ import {
   ChangePasswordRequestDto,
   GetUsersRequestDto,
   UpdateProfileDetailsRequestDto,
-  UpdateProfileImageDto,
+  UpdateProfileImageRequestDto,
   UpdateUserProfileRequestDto,
 } from './dto';
 
+@ApiBearerAuth()
+@ApiTags('User')
 @Controller('users')
 export class UsersController extends BaseController {
   constructor(private readonly usersService: UsersService) {
@@ -108,7 +111,7 @@ export class UsersController extends BaseController {
   @Post('me/profile-image')
   updateProfile(
     @Req() req: AuthenticatedRequest,
-    @Body() data: UpdateProfileImageDto,
+    @Body() data: UpdateProfileImageRequestDto,
   ) {
     const ctx = this.getContext(req);
     return this.usersService.updateProfileImage(ctx.user.id, data.profileImage);
@@ -129,6 +132,7 @@ export class UsersController extends BaseController {
     return { status: 'success' };
   }
 
+  @ApiQuery({ name: 'status', enum: UserStatus })
   @Roles(UserType.Admin)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Post(':userId/:status')

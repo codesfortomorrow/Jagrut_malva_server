@@ -7,6 +7,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import {
   AuthenticatedRequest,
   BaseController,
@@ -23,6 +24,8 @@ import {
   UpdateProfileImageRequestDto,
 } from './dto';
 
+@ApiBearerAuth()
+@ApiTags('Admin')
 @Roles(UserType.Admin)
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller()

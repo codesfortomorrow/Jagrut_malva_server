@@ -1,5 +1,6 @@
 import path from 'path';
 import * as bodyParser from 'body-parser';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService, ConfigType } from '@nestjs/config';
 import { ValidationPipe } from '@nestjs/common';
 import { HttpAdapterHost, NestFactory } from '@nestjs/core';
@@ -64,6 +65,14 @@ async function bootstrap() {
     path.join(process.cwd(), configService.get('STORAGE_DIR')),
     { prefix: `/${configService.get('STORAGE_DIR')}` },
   );
+
+  const config = new DocumentBuilder()
+    .setTitle(appConfig.platformName || '')
+    .addServer(appConfig.serverUrl || '')
+    .addBearerAuth()
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api-spec', app, document);
 
   await app.listen(configService.get('PORT'));
 

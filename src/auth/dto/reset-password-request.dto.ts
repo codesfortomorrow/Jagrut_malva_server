@@ -1,3 +1,4 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsEmail,
   IsMobilePhone,
@@ -7,12 +8,15 @@ import {
 } from 'class-validator';
 
 export class ResetPasswordRequestDto {
+  @ApiProperty()
   @IsString()
   code: string;
 
+  @ApiProperty()
   @IsStrongPassword()
   newPassword: string;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsMobilePhone(
     undefined,
@@ -24,6 +28,7 @@ export class ResetPasswordRequestDto {
   )
   mobile?: string;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsEmail()
   email?: string;

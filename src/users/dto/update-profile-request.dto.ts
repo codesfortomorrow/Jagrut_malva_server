@@ -1,3 +1,4 @@
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsEmail,
   IsMobilePhone,
@@ -7,30 +8,36 @@ import {
 } from 'class-validator';
 
 export class UpdateProfileDetailsRequestDto {
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   @IsNotEmpty()
   username?: string;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   @IsNotEmpty()
   firstname?: string;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   @IsNotEmpty()
   lastname?: string;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsEmail()
   email?: string;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   @IsNotEmpty()
   dialCode?: string;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsMobilePhone(
     undefined,
@@ -42,6 +49,7 @@ export class UpdateProfileDetailsRequestDto {
   )
   mobile?: string;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   @IsNotEmpty()
