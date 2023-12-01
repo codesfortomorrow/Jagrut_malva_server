@@ -38,6 +38,7 @@ import {
   SendCodeRequestDto,
   LoginRequestDto,
 } from './dto';
+import { SendCodeResponse } from '../otp';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -136,20 +137,24 @@ export class AuthController extends BaseController {
     if (data.mobile && !data.country) {
       throw new BadRequestException();
     }
+
+    const response = {} as Record<'email' | 'mobile', SendCodeResponse>;
     if (data.email) {
-      return await this.authService.sendCode(
+      response.email = await this.authService.sendCode(
         data.email,
         OtpTransport.Email,
         data.type,
       );
     }
     if (data.mobile) {
-      return await this.authService.sendCode(
+      response.mobile = await this.authService.sendCode(
         data.mobile,
         OtpTransport.Mobile,
         data.type,
       );
     }
+
+    return response;
   }
 
   @Post('register')
