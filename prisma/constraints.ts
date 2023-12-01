@@ -9,7 +9,7 @@ async function main() {
 
   await prisma.$transaction(async () => {
     await Promise.all([
-      // tx.$executeRaw`ALTER TABLE example 
+      // tx.$executeRaw`ALTER TABLE example
       //   ADD CONSTRAINT amount_check CHECK (amount >= 0)
       // ;`,
     ]);
