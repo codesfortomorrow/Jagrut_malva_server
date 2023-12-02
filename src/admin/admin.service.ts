@@ -1,3 +1,4 @@
+import { join } from 'path';
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { Admin, AdminMeta, AdminStatus } from '@prisma/client';
@@ -143,7 +144,10 @@ export class AdminService {
 
     // Remove current profile image from storage
     if (admin.profileImage) {
-      const profilePath = `${this.config.profileImagePath}/${admin.profileImage}`;
+      const profilePath = join(
+        this.config.profileImagePath,
+        admin.profileImage,
+      );
       if (await this.storageService.exist(profilePath)) {
         await this.storageService.removeFile(profilePath);
       }

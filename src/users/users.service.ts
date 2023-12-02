@@ -1,3 +1,4 @@
+import { join } from 'path';
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import {
@@ -336,7 +337,7 @@ export class UsersService {
         const passwordSalt = salt;
         const passwordHash = hash;
 
-        await this.prisma.userMeta.update({
+        await tx.userMeta.update({
           data: {
             passwordHash,
             passwordSalt,
@@ -359,7 +360,7 @@ export class UsersService {
 
     // Remove current profile image from storage
     if (user.profileImage) {
-      const profilePath = `${this.config.profileImagePath}/${user.profileImage}`;
+      const profilePath = join(this.config.profileImagePath, user.profileImage);
       if (await this.storageService.exist(profilePath)) {
         await this.storageService.removeFile(profilePath);
       }
