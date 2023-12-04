@@ -35,6 +35,23 @@ export class StorageService {
         },
       }),
       limits: { fileSize: this.config.maxFileSize },
+      fileFilter: (req, file, cb) => {
+        const extension = extname(file.originalname);
+
+        if (this.config.fileExtensions.includes(extension)) {
+          cb(null, true);
+        } else {
+          console.log('here');
+          cb(
+            new Error(
+              `Unsupported file type, Only allowed ${this.config.fileExtensions.join(
+                ', ',
+              )}`,
+            ),
+            false,
+          );
+        }
+      },
     };
     this.checkPermissions();
   }
