@@ -7,15 +7,27 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiConsumes, ApiParam } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { StorageService, File, JwtAuthGuard } from '@Common';
 
 @Controller()
 export class AppController {
   constructor(private readonly storageService: StorageService) {}
 
+  @ApiBearerAuth()
   @ApiConsumes('multipart/form-data')
-  @ApiParam({ name: 'file', type: String, format: 'binary' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileInterceptor('file'))
   @Post('upload')
