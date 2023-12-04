@@ -70,11 +70,17 @@ export class StorageService {
   }
 
   async removeDir(...path: string[]): Promise<void> {
-    return await fsPromises.rmdir(join(this.diskDestination, ...path));
+    const dirPath = join(this.diskDestination, ...path);
+    if (await this.exist(dirPath)) {
+      return await fsPromises.rmdir(join(this.diskDestination, ...path));
+    }
   }
 
   async removeFile(...path: string[]): Promise<void> {
-    return await fsPromises.unlink(join(this.diskDestination, ...path));
+    const filePath = join(this.diskDestination, ...path);
+    if (await this.exist(filePath)) {
+      return await fsPromises.unlink(join(this.diskDestination, ...path));
+    }
   }
 
   async exist(...path: string[]): Promise<boolean> {
@@ -102,7 +108,10 @@ export class StorageService {
     currentDirPath = '',
   ): Promise<void> {
     const fileOrDirPath = join(currentDirPath, fileOrDir);
-    if (!(await this.exist(fileOrDirPath))) {
+    if (
+      !(await this.exist(fileOrDirPath)) &&
+      !(await this.exist(join(newDirPath, fileOrDir)))
+    ) {
       throw new Error(
         `No such file or directory exist, path ${join(
           this.diskDestination,
@@ -132,7 +141,10 @@ export class StorageService {
     await Promise.all(
       filesOrDirs.map(async (fileOrDir) => {
         const fileOrDirPath = join(currentDirPath, fileOrDir);
-        if (!(await this.exist(fileOrDirPath))) {
+        if (
+          !(await this.exist(fileOrDirPath)) &&
+          !(await this.exist(join(newDirPath, fileOrDir)))
+        ) {
           throw new Error(
             `No such file or directory exist, path ${join(
               this.diskDestination,

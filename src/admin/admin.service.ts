@@ -141,26 +141,27 @@ export class AdminService {
   ): Promise<{ profileImage: string | null }> {
     const admin = await this.getById(adminId);
 
-    // Remove current profile image from storage
-    if (admin.profileImage) {
-      const profilePath = join(
-        this.config.profileImagePath,
-        admin.profileImage,
-      );
-      if (await this.storageService.exist(profilePath)) {
-        await this.storageService.removeFile(profilePath);
+    return await this.prisma.$transaction(async (tx) => {
+      await tx.admin.update({
+        where: { id: adminId },
+        data: { profileImage },
+      });
+
+      // Remove previous profile image from storage
+      if (admin.profileImage) {
+        await this.storageService.removeFile(
+          join(this.config.profileImagePath, admin.profileImage),
+        );
       }
-    }
+      await this.storageService.move(
+        profileImage,
+        this.config.profileImagePath,
+      );
 
-    await this.storageService.move(profileImage, this.config.profileImagePath);
-    await this.prisma.admin.update({
-      where: { id: adminId },
-      data: { profileImage },
+      return {
+        profileImage: this.getProfileImageUrl(profileImage),
+      };
     });
-
-    return {
-      profileImage: this.getProfileImageUrl(profileImage),
-    };
   }
 
   async changePassword(

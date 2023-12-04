@@ -357,23 +357,27 @@ export class UsersService {
   ): Promise<{ profileImage: string | null }> {
     const user = await this.getById(userId);
 
-    // Remove current profile image from storage
-    if (user.profileImage) {
-      const profilePath = join(this.config.profileImagePath, user.profileImage);
-      if (await this.storageService.exist(profilePath)) {
-        await this.storageService.removeFile(profilePath);
+    return await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: { profileImage },
+      });
+
+      if (user.profileImage) {
+        // Remove previous profile image from storage
+        await this.storageService.removeFile(
+          join(this.config.profileImagePath, user.profileImage),
+        );
       }
-    }
+      await this.storageService.move(
+        profileImage,
+        this.config.profileImagePath,
+      );
 
-    await this.storageService.move(profileImage, this.config.profileImagePath);
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { profileImage },
+      return {
+        profileImage: this.getProfileImageUrl(profileImage),
+      };
     });
-
-    return {
-      profileImage: this.getProfileImageUrl(profileImage),
-    };
   }
 
   async changePassword(
