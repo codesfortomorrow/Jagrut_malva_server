@@ -1,5 +1,5 @@
 import path from 'path';
-import ejs from 'ejs';
+import pug from 'pug';
 import nodemailer from 'nodemailer';
 import { Queue } from 'bullmq';
 import { SentMessageInfo } from 'nodemailer/lib/smtp-transport';
@@ -65,9 +65,9 @@ export class MailService {
   };
 
   async renderTemplate(template: MailTemplate, data?: Record<string, unknown>) {
-    return await ejs.renderFile(
-      path.resolve('templates', 'mail', `${template}.ejs`),
-      data,
+    return await pug.renderFile(
+      path.resolve('templates', 'mail', `${template}.pug`),
+      data as any,
     );
   }
 
