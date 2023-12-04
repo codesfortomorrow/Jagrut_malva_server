@@ -65,6 +65,9 @@ async function bootstrap() {
     path.join(process.cwd(), configService.get('STORAGE_DIR')),
     { prefix: `/${configService.get('STORAGE_DIR')}` },
   );
+  app.useStaticAssets(path.join(process.cwd(), 'static'), {
+    prefix: `/static`,
+  });
 
   const config = new DocumentBuilder()
     .setTitle(appConfig.platformName || '')
