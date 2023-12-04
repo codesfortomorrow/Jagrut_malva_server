@@ -24,14 +24,11 @@ export class UsersService {
     private readonly otpService: OtpService,
   ) {}
 
-  private getProfileImage(user: User): string | null {
-    if (user.profileImage) {
-      return this.storageService.getFileUrl(
-        user.profileImage,
-        this.config.profileImagePath,
-      );
-    }
-    return null;
+  private getProfileImageUrl(profileImage: string): string {
+    return this.storageService.getFileUrl(
+      profileImage,
+      this.config.profileImagePath,
+    );
   }
 
   private async isEmailExist(
@@ -255,7 +252,9 @@ export class UsersService {
 
   async getProfile(userId: string): Promise<User> {
     const user = await this.getById(userId);
-    user.profileImage = this.getProfileImage(user);
+    if (user.profileImage) {
+      user.profileImage = this.getProfileImageUrl(user.profileImage);
+    }
     return user;
   }
 
@@ -367,13 +366,13 @@ export class UsersService {
     }
 
     await this.storageService.move(profileImage, this.config.profileImagePath);
-    const updatedUser = await this.prisma.user.update({
+    await this.prisma.user.update({
       where: { id: userId },
       data: { profileImage },
     });
 
     return {
-      profileImage: this.getProfileImage(updatedUser),
+      profileImage: this.getProfileImageUrl(profileImage),
     };
   }
 
@@ -577,7 +576,9 @@ export class UsersService {
       users.map(async (user) => {
         return {
           ...user,
-          profileImage: this.getProfileImage(user),
+          profileImage: user.profileImage
+            ? this.getProfileImageUrl(user.profileImage)
+            : null,
         };
       }),
     );

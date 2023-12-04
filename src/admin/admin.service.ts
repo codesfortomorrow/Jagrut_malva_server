@@ -16,14 +16,11 @@ export class AdminService {
     private readonly storageService: StorageService,
   ) {}
 
-  private getProfileImage(admin: Admin): string | null {
-    if (admin.profileImage) {
-      return this.storageService.getFileUrl(
-        admin.profileImage,
-        this.config.profileImagePath,
-      );
-    }
-    return null;
+  private getProfileImageUrl(profileImage: string): string {
+    return this.storageService.getFileUrl(
+      profileImage,
+      this.config.profileImagePath,
+    );
   }
 
   private hashPassword(password: string): { salt: string; hash: string } {
@@ -111,7 +108,9 @@ export class AdminService {
 
   async getProfile(adminId: string): Promise<Admin> {
     const admin = await this.getById(adminId);
-    admin.profileImage = this.getProfileImage(admin);
+    if (admin.profileImage) {
+      admin.profileImage = this.getProfileImageUrl(admin.profileImage);
+    }
     return admin;
   }
 
@@ -154,13 +153,13 @@ export class AdminService {
     }
 
     await this.storageService.move(profileImage, this.config.profileImagePath);
-    const updatedAdmin = await this.prisma.admin.update({
+    await this.prisma.admin.update({
       where: { id: adminId },
       data: { profileImage },
     });
 
     return {
-      profileImage: this.getProfileImage(updatedAdmin),
+      profileImage: this.getProfileImageUrl(profileImage),
     };
   }
 
