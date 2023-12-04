@@ -13,7 +13,12 @@ import {
   Redirect,
 } from '@nestjs/common';
 import { CookieOptions, Request, Response } from 'express';
-import { ApiBody, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiExcludeEndpoint,
+  ApiTags,
+} from '@nestjs/swagger';
 import { ConfigType } from '@nestjs/config';
 import { OtpTransport } from '@prisma/client';
 import {
@@ -211,6 +216,7 @@ export class AuthController extends BaseController {
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   googleOAuth() {}
 
+  @ApiExcludeEndpoint()
   @UseGuards(GoogleOAuthGuard)
   @Get('google/callback')
   @Redirect()
@@ -228,6 +234,7 @@ export class AuthController extends BaseController {
     };
   }
 
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Post('logout')
   async logout(
