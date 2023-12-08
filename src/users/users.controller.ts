@@ -12,7 +12,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiParam, ApiTags } from '@nestjs/swagger';
 import { UserStatus } from '@prisma/client';
 import {
   AuthenticatedRequest,
@@ -139,7 +139,7 @@ export class UsersController extends BaseController {
   }
 
   @ApiTags('Admin')
-  @ApiQuery({ name: 'status', enum: UserStatus })
+  @ApiParam({ name: 'status', enum: UserStatus })
   @Roles(UserType.Admin)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Post(':userId/:status')
