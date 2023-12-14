@@ -22,19 +22,17 @@ export class MailProcessor extends BaseProcessor {
     job: Job<SendMessagePayload, SentMessageInfo, string>,
   ): Promise<SentMessageInfo> {
     const { to, subject, attachments, replyTo } = job.data;
-    let { mailBody } = job.data;
+    let { mailBodyOrTemplate } = job.data;
 
-    if (typeof mailBody !== 'string') {
-      mailBody = await this.mailService.renderTemplate(
-        mailBody.template,
-        mailBody.data,
-      );
+    if (typeof mailBodyOrTemplate !== 'string') {
+      mailBodyOrTemplate =
+        await this.mailService.renderTemplate(mailBodyOrTemplate);
     }
 
     const mailOptions = this.mailService.configureMessage(
       to,
       subject,
-      mailBody,
+      mailBodyOrTemplate,
       attachments,
       replyTo,
     );

@@ -14,7 +14,7 @@ import { MailTemplate } from '../types';
 export type SendMessagePayload = {
   to: string;
   subject: string;
-  mailBody: string | { template: MailTemplate; data?: Record<string, unknown> };
+  mailBodyOrTemplate: string | MailTemplate;
   attachments?: string[];
   replyTo?: string;
 };
@@ -64,10 +64,10 @@ export class MailService {
     return messageConfiguration;
   };
 
-  async renderTemplate(template: MailTemplate, data?: Record<string, unknown>) {
+  async renderTemplate(template: MailTemplate) {
     return await pug.renderFile(
-      path.resolve('templates', 'mail', `${template}.pug`),
-      data as any,
+      path.resolve('templates', 'mail', `${template.name}.pug`),
+      template.data,
     );
   }
 

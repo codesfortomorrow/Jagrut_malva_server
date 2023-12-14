@@ -11,7 +11,12 @@ import {
 import { StorageService, UserType, UtilsService, ValidatedUser } from '@Common';
 import { userConfigFactory } from '@Config';
 import { PrismaService } from '../prisma';
-import { OtpService, SendCodeResponse, VerifyCodeResponse } from '../otp';
+import {
+  OtpContext,
+  OtpService,
+  SendCodeResponse,
+  VerifyCodeResponse,
+} from '../otp';
 
 @Injectable()
 export class UsersService {
@@ -415,25 +420,34 @@ export class UsersService {
     return user;
   }
 
-  async sendResetPasswordVerificationCode(
-    email?: string,
-    mobile?: string,
-  ): Promise<SendCodeResponse> {
+  async sendResetPasswordVerificationCode(email?: string, mobile?: string) {
     let user: User | null | undefined;
 
     if (email) user = await this.getByEmail(email);
     if (!user && mobile) user = await this.getByMobile(mobile);
     if (!user) throw new Error('User does not exist');
 
-    let response: SendCodeResponse | undefined | null;
+    const response: { email?: SendCodeResponse; mobile?: SendCodeResponse } =
+      {};
 
     if (mobile) {
-      response = await this.otpService.send(mobile, OtpTransport.Mobile);
+      response.mobile = await this.otpService.send({
+        context: OtpContext.ResetPassword,
+        target: mobile,
+        transport: OtpTransport.Mobile,
+      });
     }
     if (email) {
-      response = await this.otpService.send(email, OtpTransport.Email);
+      response.email = await this.otpService.send({
+        context: OtpContext.ResetPassword,
+        target: email,
+        transport: OtpTransport.Email,
+        transportParams: {
+          username: user.firstname.concat(' ', user.lastname),
+        },
+      });
     }
-    if (!response) throw new Error('Unexpected error');
+
     return response;
   }
 

@@ -6,7 +6,12 @@ import { JwtPayload, UserType } from '@Common';
 import { appConfigFactory } from '@Config';
 import { SendCodeRequestType } from './dto';
 import { UsersService } from '../users';
-import { OtpService, SendCodeResponse, VerifyCodeResponse } from '../otp';
+import {
+  OtpContext,
+  OtpService,
+  SendCodeResponse,
+  VerifyCodeResponse,
+} from '../otp';
 
 export type ValidAuthResponse = {
   accessToken: string;
@@ -35,10 +40,24 @@ export class AuthService {
   async sendCode(
     target: string,
     transport: OtpTransport,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     type: SendCodeRequestType,
   ): Promise<SendCodeResponse> {
-    return await this.otpService.send(target, transport);
+    if (type === SendCodeRequestType.Register) {
+      return await this.otpService.send({
+        context: OtpContext.Register,
+        target,
+        ...(transport === OtpTransport.Email
+          ? {
+              transport,
+              transportParams: {
+                username: 'User',
+              },
+            }
+          : { transport }),
+      });
+    }
+
+    throw new Error('Unknown send code request type found');
   }
 
   async login(userId: string, type: UserType): Promise<ValidAuthResponse> {
@@ -108,7 +127,7 @@ export class AuthService {
   async forgotPassword(
     email?: string,
     mobile?: string,
-  ): Promise<SendCodeResponse> {
+  ): Promise<{ email?: SendCodeResponse; mobile?: SendCodeResponse }> {
     return await this.usersService.sendResetPasswordVerificationCode(
       email,
       mobile,

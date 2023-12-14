@@ -2,8 +2,13 @@ import dayjs from 'dayjs';
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { Otp, OtpTransport, Prisma } from '@prisma/client';
-import { otpConfigFactory } from '@Config';
-import { MailService, MailTemplate, UtilsService } from '@Common';
+import { appConfigFactory, otpConfigFactory } from '@Config';
+import {
+  MailService,
+  UtilsService,
+  RegisterVerificationCodeMailTemplate,
+  ResetPasswordVerificationCodeMailTemplate,
+} from '@Common';
 import { PrismaService } from '../prisma';
 
 export type SendCodeResponse = {
@@ -19,9 +24,40 @@ export type VerifyCodeResponse = {
   maxRetries: number;
 };
 
+export enum OtpContext {
+  Register = 'register',
+  ResetPassword = 'reset_password',
+}
+
+type OtpSmsParams = {
+  code: string;
+  expirationTime: string;
+};
+
+type OtpMailParams = {
+  subject: string;
+  template: OtpMailTemplate;
+};
+
+type OtpTransportPayload = { context: OtpContext } & (
+  | {
+      transport: typeof OtpTransport.Email;
+      transportParams: { username: string };
+    }
+  | {
+      transport: typeof OtpTransport.Mobile;
+    }
+);
+
+type OtpMailTemplate =
+  | RegisterVerificationCodeMailTemplate
+  | ResetPasswordVerificationCodeMailTemplate;
+
 @Injectable()
 export class OtpService {
   constructor(
+    @Inject(appConfigFactory.KEY)
+    private readonly appConfig: ConfigType<typeof appConfigFactory>,
     @Inject(otpConfigFactory.KEY)
     private readonly config: ConfigType<typeof otpConfigFactory>,
     private readonly prisma: PrismaService,
@@ -30,11 +66,11 @@ export class OtpService {
   ) {}
 
   private blockError(target: string, blockTimeout: number): Error {
+    const duration = this.utilsService.msToHuman(blockTimeout, {
+      maxUnit: 'hour',
+    });
     return new Error(
-      `${target} temporary blocked for ${this.utilsService.msToHuman(
-        blockTimeout,
-        { maxUnit: 'hour' },
-      )}, due to max wrong attempts or failed retries`,
+      `${target} temporary blocked for ${duration}, due to max wrong attempts or failed retries`,
     );
   }
 
@@ -94,52 +130,87 @@ export class OtpService {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     target: string,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    data: { code: string; timeout: number },
+    params: OtpSmsParams,
   ): Promise<void> {
     if (!this.utilsService.isProductionApp()) return;
   }
 
   private async sendEmail(
     target: string,
-    data: { code: string; timeout: number },
+    params: OtpMailParams,
   ): Promise<void> {
-    if (!this.utilsService.isProductionApp()) return;
+    // if (!this.utilsService.isProductionApp()) return;
 
     await this.mailService.send({
       to: target,
-      subject: 'Verification Code',
-      mailBody: {
-        template: MailTemplate.VerificationCode,
-        data: {
-          code: data.code,
-          expirationTime: this.utilsService.msToHuman(data.timeout),
-        },
-      },
+      subject: params.subject,
+      mailBodyOrTemplate: params.template,
     });
   }
 
+  private getContextMailParams(args: {
+    context: OtpContext;
+    code: string;
+    timeout: number;
+    username: string;
+  }): OtpMailParams {
+    const data = {
+      username: args.username,
+      code: args.code,
+      expirationTime: this.utilsService.msToHuman(args.timeout),
+    };
+
+    switch (args.context) {
+      case OtpContext.Register:
+        return {
+          subject: 'Sign up verification code',
+          template: {
+            name: 'register-verification-code',
+            data,
+          },
+        };
+      case OtpContext.ResetPassword:
+        return {
+          subject: 'Reset password verification code',
+          template: {
+            name: 'reset-password-verification-code',
+            data,
+          },
+        };
+      default:
+        throw new Error('Unknown otp context found');
+    }
+  }
+
   private async sendCodeOnTarget(
-    target: string,
-    transport: OtpTransport,
-    code: string,
-    timeout: number,
+    args: {
+      target: string;
+      code: string;
+      timeout: number;
+    } & OtpTransportPayload,
   ): Promise<void> {
-    if (transport === OtpTransport.Mobile) {
-      return await this.sendSMS(target, { code, timeout });
+    if (args.transport === OtpTransport.Mobile) {
+      return await this.sendSMS(args.target, {
+        code: args.code,
+        expirationTime: this.utilsService.msToHuman(args.timeout),
+      });
     }
 
-    if (transport === OtpTransport.Email) {
-      return await this.sendEmail(target, { code, timeout });
+    if (args.transport === OtpTransport.Email) {
+      return await this.sendEmail(
+        args.target,
+        this.getContextMailParams({
+          context: args.context,
+          code: args.code,
+          timeout: args.timeout,
+          username: args.transportParams.username,
+        }),
+      );
     }
-
-    throw new Error(
-      `Unknown transport ${transport} to send verification code on ${target}`,
-    );
   }
 
   async send(
-    target: string,
-    transport: OtpTransport,
+    args: { target: string } & OtpTransportPayload,
     overrides?: {
       length?: number;
       maxAttempt?: number;
@@ -155,22 +226,30 @@ export class OtpService {
       blockTimeout: overrides?.blockTimeout || this.config.blockTimeout,
     };
 
-    let otp = await this.find(target, transport);
+    let otp = await this.find(args.target, args.transport);
 
     if (!otp) {
       const code =
-        transport === OtpTransport.Mobile
+        args.transport === OtpTransport.Mobile
           ? this.config.default
           : this.generateCode(config.length);
       otp = await this.prisma.otp.create({
         data: {
           code,
           lastSentAt: new Date(),
-          target: target.toLowerCase(),
-          transport: transport,
+          target: args.target.toLowerCase(),
+          transport: args.transport,
         },
       });
-      await this.sendCodeOnTarget(target, transport, code, config.timeout);
+      await this.sendCodeOnTarget({
+        context: args.context,
+        target: args.target,
+        code,
+        timeout: config.timeout,
+        ...(args.transport === OtpTransport.Email
+          ? { transport: args.transport, transportParams: args.transportParams }
+          : { transport: args.transport }),
+      });
     } else {
       const isBlockTimeout = this.isBlockTimeout(
         otp.lastSentAt,
@@ -178,7 +257,7 @@ export class OtpService {
       );
 
       if (otp.blocked && !isBlockTimeout) {
-        throw this.blockError(target, config.blockTimeout);
+        throw this.blockError(args.target, config.blockTimeout);
       }
 
       if (
@@ -186,9 +265,9 @@ export class OtpService {
         !otp.lastCodeVerified
       ) {
         throw new Error(
-          `Resend verification code on ${target} not allowed with in ${this.utilsService.msToHuman(
-            config.timeout,
-          )}`,
+          `Resend verification code on ${
+            args.target
+          } not allowed with in ${this.utilsService.msToHuman(config.timeout)}`,
         );
       }
 
@@ -197,12 +276,12 @@ export class OtpService {
       }
 
       if (config.maxAttempt - otp.attempt === 0) {
-        await this.update(target, transport, { blocked: true });
-        throw this.blockError(target, config.blockTimeout);
+        await this.update(args.target, args.transport, { blocked: true });
+        throw this.blockError(args.target, config.blockTimeout);
       }
 
       const code = this.generateCode(config.length);
-      otp = await this.update(target, transport, {
+      otp = await this.update(args.target, args.transport, {
         code,
         lastSentAt: new Date(),
         attempt: otp.attempt + 1,
@@ -210,7 +289,15 @@ export class OtpService {
         blocked: false,
         lastCodeVerified: false,
       });
-      await this.sendCodeOnTarget(target, transport, code, config.timeout);
+      await this.sendCodeOnTarget({
+        context: args.context,
+        target: args.target,
+        code,
+        timeout: config.timeout,
+        ...(args.transport === OtpTransport.Email
+          ? { transport: args.transport, transportParams: args.transportParams }
+          : { transport: args.transport }),
+      });
     }
 
     return {
