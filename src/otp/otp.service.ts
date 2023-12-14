@@ -139,7 +139,7 @@ export class OtpService {
     target: string,
     params: OtpMailParams,
   ): Promise<void> {
-    // if (!this.utilsService.isProductionApp()) return;
+    if (!this.utilsService.isProductionApp()) return;
 
     await this.mailService.send({
       to: target,

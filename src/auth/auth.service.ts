@@ -43,6 +43,19 @@ export class AuthService {
     type: SendCodeRequestType,
   ): Promise<SendCodeResponse> {
     if (type === SendCodeRequestType.Register) {
+      if (
+        transport === OtpTransport.Email &&
+        (await this.usersService.isEmailExist(target))
+      ) {
+        throw new Error('Email already in use');
+      }
+      if (
+        transport === OtpTransport.Mobile &&
+        (await this.usersService.isMobileExist(target))
+      ) {
+        throw new Error('Mobile already in use');
+      }
+
       return await this.otpService.send({
         context: OtpContext.Register,
         target,

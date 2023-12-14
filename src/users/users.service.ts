@@ -36,10 +36,21 @@ export class UsersService {
     );
   }
 
-  private async isEmailExist(
-    email: string,
-    excludeUserId?: string,
-  ): Promise<boolean> {
+  private hashPassword(password: string): { salt: string; hash: string } {
+    const salt = this.utilsService.generateSalt(this.config.passwordSaltLength);
+    const hash = this.utilsService.hashPassword(
+      password,
+      salt,
+      this.config.passwordHashLength,
+    );
+    return { salt, hash };
+  }
+
+  private isValidUsername(username: string): boolean {
+    return /^[a-z][a-z0-9_]{3,20}$/.test(username);
+  }
+
+  async isEmailExist(email: string, excludeUserId?: string): Promise<boolean> {
     return (
       (await this.prisma.user.count({
         where: {
@@ -52,7 +63,7 @@ export class UsersService {
     );
   }
 
-  private async isUsernameExist(
+  async isUsernameExist(
     username: string,
     excludeUserId?: string,
   ): Promise<boolean> {
@@ -68,7 +79,7 @@ export class UsersService {
     );
   }
 
-  private async isMobileExist(
+  async isMobileExist(
     mobile: string,
     excludeUserId?: string,
   ): Promise<boolean> {
@@ -82,20 +93,6 @@ export class UsersService {
         },
       })) !== 0
     );
-  }
-
-  private hashPassword(password: string): { salt: string; hash: string } {
-    const salt = this.utilsService.generateSalt(this.config.passwordSaltLength);
-    const hash = this.utilsService.hashPassword(
-      password,
-      salt,
-      this.config.passwordHashLength,
-    );
-    return { salt, hash };
-  }
-
-  private isValidUsername(username: string): boolean {
-    return /^[a-z][a-z0-9_]{3,20}$/.test(username);
   }
 
   async getById(userId: string): Promise<User> {
