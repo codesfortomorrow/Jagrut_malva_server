@@ -67,7 +67,7 @@ export class MailService {
   async renderTemplate(template: MailTemplate) {
     return await pug.renderFile(
       path.resolve('templates', 'mail', `${template.name}.pug`),
-      template.data,
+      'data' in template ? template.data : {},
     );
   }
 
