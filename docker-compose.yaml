@@ -1,7 +1,7 @@
 version: '3'
 services:
   postgres:
-    image: postgres:15
+    image: postgres:16
     container_name: nestjs-app-postgres
     restart: unless-stopped
     ports:
@@ -12,12 +12,11 @@ services:
     volumes:
       - ${POSTGRES_DATA_VOLUME}:/var/lib/postgresql/data
   redis:
-    image: redis/redis-stack
+    image: redis/redis-stack-server
     container_name: nestjs-app-redis
     restart: unless-stopped
     ports:
       - ${REDIS_PORT}:6379
-      - ${REDISINSIGHT_PORT}:8001
     environment:
       - REDIS_ARGS=--requirepass ${REDIS_PASSWORD}
     volumes:
