@@ -1,17 +1,13 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsMobilePhone, IsOptional } from 'class-validator';
+import { IsEmail, IsOptional, IsPhoneNumber } from 'class-validator';
 
 export class ForgotPasswordRequestDto {
   @ApiPropertyOptional()
   @IsOptional()
-  @IsMobilePhone(
-    undefined,
-    { strictMode: true },
-    {
-      message:
-        'The mobile number you entered is invalid, please provide a valid mobile number',
-    },
-  )
+  @IsPhoneNumber(undefined, {
+    message:
+      'The mobile number you entered is invalid, please provide a valid mobile number',
+  })
   mobile?: string;
 
   @ApiPropertyOptional()

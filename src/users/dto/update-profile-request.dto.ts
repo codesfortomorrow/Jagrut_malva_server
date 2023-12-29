@@ -1,9 +1,9 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsEmail,
-  IsMobilePhone,
   IsNotEmpty,
   IsOptional,
+  IsPhoneNumber,
   IsString,
 } from 'class-validator';
 
@@ -39,14 +39,10 @@ export class UpdateProfileDetailsRequestDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsMobilePhone(
-    undefined,
-    { strictMode: true },
-    {
-      message:
-        'The mobile number you entered is invalid, please provide a valid mobile number',
-    },
-  )
+  @IsPhoneNumber(undefined, {
+    message:
+      'The mobile number you entered is invalid, please provide a valid mobile number',
+  })
   mobile?: string;
 
   @ApiPropertyOptional()

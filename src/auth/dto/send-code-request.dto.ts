@@ -2,9 +2,9 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsEmail,
   IsEnum,
-  IsMobilePhone,
   IsNotEmpty,
   IsOptional,
+  IsPhoneNumber,
   IsString,
 } from 'class-validator';
 
@@ -15,14 +15,10 @@ export enum SendCodeRequestType {
 export class SendCodeRequestDto {
   @ApiPropertyOptional()
   @IsOptional()
-  @IsMobilePhone(
-    undefined,
-    { strictMode: true },
-    {
-      message:
-        'The mobile number you entered is invalid, please provide a valid mobile number',
-    },
-  )
+  @IsPhoneNumber(undefined, {
+    message:
+      'The mobile number you entered is invalid, please provide a valid mobile number',
+  })
   mobile?: string;
 
   @ApiPropertyOptional()
