@@ -18,11 +18,11 @@
     "lint": "eslint . --fix",
     "lint-staged": "lint-staged",
     "commitlint": "commitlint",
-    "test": "jest --onlyChanged",
+    "test": "jest --detectOpenHandles --onlyChanged",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --onlyChanged --config ./test/jest-e2e.json",
+    "test:e2e": "jest --detectOpenHandles --onlyChanged --config ./test/jest-e2e.json",
     "prod:db": "docker compose up -d postgres redis",
     "prod:db:stop": "docker compose stop postgres redis",
     "dev:db": "docker compose -f docker-compose.dev.yaml up -d postgres redis",
@@ -142,8 +142,10 @@
     }
   },
   "lint-staged": {
+    "**/*.js|ts": [
+      "eslint --cache --fix"
+    ],
     "**/*": [
-      "eslint --cache --fix",
       "prettier --write . --plugin=@prettier/plugin-pug"
     ],
     "prisma/schema.prisma": [
