@@ -18,6 +18,9 @@ storage
 .DS_Store
 .eslintcache
 
+# Redis snapshot
+*.rdb
+
 # Tests
 /coverage
 /.nyc_output

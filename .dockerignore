@@ -26,3 +26,6 @@ coverage/
 # OS and cache
 .DS_Store
 .eslintcache
+
+# Redis snapshot
+*.rdb
