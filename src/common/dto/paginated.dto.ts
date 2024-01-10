@@ -1,13 +1,13 @@
-import { IsNumber, IsOptional, Max, Min } from 'class-validator';
+import { IsInt, IsOptional, Max, Min } from 'class-validator';
 
 export class PaginatedDto {
   @IsOptional()
-  @IsNumber()
+  @IsInt()
   @Min(0)
   skip?: number;
 
   @IsOptional()
-  @IsNumber()
+  @IsInt()
   @Max(1000)
   take?: number;
 }

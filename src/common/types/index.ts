@@ -1,5 +1,5 @@
 import { Request } from 'express';
-import { IsEnum, IsNumber, IsString } from 'class-validator';
+import { IsEnum, IsInt, IsString } from 'class-validator';
 
 export enum Environment {
   Development = 'development',
@@ -14,7 +14,7 @@ export class EnvironmentVariables {
   @IsEnum(Environment)
   APP_ENV: Environment;
 
-  @IsNumber()
+  @IsInt()
   PORT: number;
 
   @IsString()

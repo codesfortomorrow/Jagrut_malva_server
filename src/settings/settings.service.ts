@@ -176,33 +176,40 @@ export class SettingsService {
     return this.mapSettings(allSettings, systemSettings);
   }
 
-  async updateUserSetting(
-    userId: string,
-    settingId: number,
-    enable?: boolean,
-    selection?: string,
-    selections?: string[],
-  ): Promise<UserSetting> {
-    const setting = await this.getById(settingId);
-    if (setting.type === SettingType.Binary && typeof enable === 'boolean') {
-      return await this.upsertUserSetting(userId, settingId, enable);
+  async updateUserSetting(data: {
+    userId: string;
+    settingId: number;
+    enable?: boolean;
+    selection?: string;
+    selections?: string[];
+  }): Promise<UserSetting> {
+    const setting = await this.getById(data.settingId);
+    if (
+      setting.type === SettingType.Binary &&
+      typeof data.enable === 'boolean'
+    ) {
+      return await this.upsertUserSetting(
+        data.userId,
+        data.settingId,
+        data.enable,
+      );
     }
 
     if (
       setting.type === SettingType.SingleSelect &&
-      typeof selection === 'string'
+      typeof data.selection === 'string'
     ) {
       if (setting.isDefinedOptions) {
         const settingOptions = setting.options;
 
-        if (!_.some(settingOptions, { id: Number(selection) })) {
+        if (!_.some(settingOptions, { id: Number(data.selection) })) {
           throw new Error('Invalid setting option selection');
         }
 
         return await this.upsertUserSetting(
-          userId,
-          settingId,
-          Number(selection),
+          data.userId,
+          data.settingId,
+          Number(data.selection),
         );
       } else {
         // TODO: Need to handle dynamic setting options
@@ -211,21 +218,21 @@ export class SettingsService {
 
     if (
       setting.type === SettingType.MultiSelect &&
-      selections instanceof Array
+      data.selections instanceof Array
     ) {
       if (setting.isDefinedOptions) {
         const settingOptions = setting.options;
 
-        selections.forEach((selection) => {
+        data.selections.forEach((selection) => {
           if (!_.some(settingOptions, { id: Number(selection) })) {
             throw new Error('Invalid setting option selection');
           }
         });
 
         return await this.upsertUserSetting(
-          userId,
-          settingId,
-          selections.map((selection) => Number(selection)),
+          data.userId,
+          data.settingId,
+          data.selections.map((selection) => Number(selection)),
         );
       } else {
         // TODO: Need to handle dynamic setting options
@@ -235,29 +242,35 @@ export class SettingsService {
     throw new Error('Unknown error');
   }
 
-  async updateSystemSetting(
-    settingId: number,
-    enable?: boolean,
-    selection?: string,
-    selections?: string[],
-  ): Promise<SystemSetting> {
-    const setting = await this.getById(settingId);
-    if (setting.type === SettingType.Binary && typeof enable === 'boolean') {
-      return await this.upsertSystemSetting(settingId, enable);
+  async updateSystemSetting(data: {
+    settingId: number;
+    enable?: boolean;
+    selection?: string;
+    selections?: string[];
+  }): Promise<SystemSetting> {
+    const setting = await this.getById(data.settingId);
+    if (
+      setting.type === SettingType.Binary &&
+      typeof data.enable === 'boolean'
+    ) {
+      return await this.upsertSystemSetting(data.settingId, data.enable);
     }
 
     if (
       setting.type === SettingType.SingleSelect &&
-      typeof selection === 'string'
+      typeof data.selection === 'string'
     ) {
       if (setting.isDefinedOptions) {
         const settingOptions = setting.options;
 
-        if (!_.some(settingOptions, { id: Number(selection) })) {
+        if (!_.some(settingOptions, { id: Number(data.selection) })) {
           throw new Error('Invalid setting option selection');
         }
 
-        return await this.upsertSystemSetting(settingId, Number(selection));
+        return await this.upsertSystemSetting(
+          data.settingId,
+          Number(data.selection),
+        );
       } else {
         // TODO: Need to handle dynamic setting options
       }
@@ -265,20 +278,20 @@ export class SettingsService {
 
     if (
       setting.type === SettingType.MultiSelect &&
-      selections instanceof Array
+      data.selections instanceof Array
     ) {
       if (setting.isDefinedOptions) {
         const settingOptions = setting.options;
 
-        selections.forEach((selection) => {
+        data.selections.forEach((selection) => {
           if (!_.some(settingOptions, { id: Number(selection) })) {
             throw new Error('Invalid setting option selection');
           }
         });
 
         return await this.upsertSystemSetting(
-          settingId,
-          selections.map((selection) => Number(selection)),
+          data.settingId,
+          data.selections.map((selection) => Number(selection)),
         );
       } else {
         // TODO: Need to handle dynamic setting options

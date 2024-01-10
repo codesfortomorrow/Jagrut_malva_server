@@ -38,7 +38,7 @@ export class UsersController extends BaseController {
     super();
   }
 
-  @ApiTags('Admin')
+  @ApiTags('User')
   @Roles(UserType.Admin)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Get()
@@ -82,7 +82,7 @@ export class UsersController extends BaseController {
     return { status: 'success' };
   }
 
-  @ApiTags('Admin')
+  @ApiTags('User')
   @Roles(UserType.Admin)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Get(':userId')
@@ -90,7 +90,7 @@ export class UsersController extends BaseController {
     return await this.usersService.getProfile(userId);
   }
 
-  @ApiTags('Admin')
+  @ApiTags('User')
   @Roles(UserType.Admin)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Patch(':userId')
@@ -138,7 +138,7 @@ export class UsersController extends BaseController {
     return { status: 'success' };
   }
 
-  @ApiTags('Admin')
+  @ApiTags('User')
   @ApiParam({ name: 'status', enum: UserStatus })
   @Roles(UserType.Admin)
   @UseGuards(JwtAuthGuard, RolesGuard)

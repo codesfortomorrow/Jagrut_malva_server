@@ -33,8 +33,9 @@ async function bootstrap() {
   );
   const origins = appConfig.domain
     ? [
-        new RegExp(`^http[s]{0,1}://${appConfig.domain}$`),
-        new RegExp(`^http[s]{0,1}://[a-z-]+.${appConfig.domain}$`),
+        new RegExp(
+          `^http[s]{0,1}://(?:${appConfig.domain}|[a-z0-9-]+.${appConfig.domain})$`,
+        ),
       ]
     : [];
 
@@ -47,7 +48,9 @@ async function bootstrap() {
       transformOptions: { enableImplicitConversion: true },
     }),
   );
-  app.useGlobalFilters(new AllExceptionsFilter(app.get(HttpAdapterHost)));
+  app.useGlobalFilters(
+    new AllExceptionsFilter(app.get(HttpAdapterHost), app.get(UtilsService)),
+  );
   app.enableCors({
     origin: utilsService.isProduction()
       ? origins
