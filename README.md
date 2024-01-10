@@ -64,7 +64,7 @@ For convenience to switch between docker environment to local environment & test
 127.0.0.1 redis
 ```
 
-## Running the server on docker environment
+## Run the server in docker container
 
 ```bash
 # development
@@ -76,7 +76,7 @@ $ npm run prod
 $ npm run prod:stop # To shut down containers
 ```
 
-## Running the server without docker
+## Run the server in local machine
 
 ```bash
 # development
@@ -117,6 +117,9 @@ $ npm run db:seed:only <name> # i.e. `npm run db:seed:only admin` to run prisma/
 # add constraints in schema (Note: Not required, If not using `db:schema:push` on staging or production env)
 $ npm run db:schema:constraints
 
+# add constraints for the specific table
+$ npm run db:schema:constraints:only <table name> # i.e. `npm run db:schema:constraints:only user` to add constraints into the user table
+
 # generate client with schema
 $ npm run db:client:generate
 
@@ -134,4 +137,14 @@ $ npm run db:migrate:reset
 
 # deploy all migrations
 $ npm run db:migrate:deploy
+```
+
+## API Documentation
+
+```bash
+# development
+http://localhost:{PORT}/api-spec
+
+# production
+{API_URL}/api-spec
 ```
