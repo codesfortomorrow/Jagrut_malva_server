@@ -116,7 +116,7 @@ export class SettingsService {
     });
   }
 
-  async getById(settingId: number) {
+  private async getById(settingId: number) {
     // TODO: Need to add sub settings using recursion strategy
     return await this.prisma.setting.findUniqueOrThrow({
       include: {
@@ -126,7 +126,7 @@ export class SettingsService {
     });
   }
 
-  async getAll(
+  private async getAll(
     context: SettingContext,
     options?: {
       mappedTo?: string;
@@ -272,7 +272,7 @@ export class SettingsService {
           Number(data.selection),
         );
       } else {
-        // TODO: Need to handle dynamic setting options
+        return await this.upsertSystemSetting(data.settingId, data.selection);
       }
     }
 

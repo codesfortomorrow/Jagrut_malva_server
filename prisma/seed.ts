@@ -11,7 +11,7 @@ const prisma = new PrismaClient();
 async function main() {
   const options = program.opts();
 
-  // Seed admin default credentials
+  // Seed admin default credential
   if (!options.seedOnly || options.seedOnly === 'admin') {
     if (await prisma.admin.count()) {
       console.log('⚠ Skipping seed for `admin`, due to non-empty table');

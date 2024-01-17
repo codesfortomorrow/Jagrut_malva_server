@@ -3,13 +3,13 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { Otp, OtpTransport, Prisma } from '@prisma/client';
 import { appConfigFactory, otpConfigFactory } from '@Config';
+import { UtilsService } from '@Common';
+import { PrismaService } from '../prisma';
 import {
   MailService,
-  UtilsService,
   RegisterVerificationCodeMailTemplate,
   ResetPasswordVerificationCodeMailTemplate,
-} from '@Common';
-import { PrismaService } from '../prisma';
+} from '../mail';
 
 export type SendCodeResponse = {
   sentAt: Date;

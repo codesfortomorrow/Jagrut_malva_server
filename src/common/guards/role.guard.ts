@@ -8,6 +8,7 @@ export const Roles = (...roles: UserType[]) => SetMetadata('roles', roles);
 @Injectable()
 export class RolesGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
+
   canActivate(context: ExecutionContext): boolean {
     // Get the roles required
     const roles = this.reflector.getAllAndOverride<string[]>('roles', [

@@ -59,14 +59,9 @@ export class AuthController extends BaseController {
     super();
   }
 
-  private setCookie(
-    res: Response,
-    key: string,
-    value: string,
-    options?: CookieOptions,
-  ): void {
+  private getCookieOptions(options?: CookieOptions) {
     const isProduction = this.utilsService.isProduction();
-    res.cookie(key, value, {
+    return {
       expires: options?.expires,
       domain:
         options?.domain !== undefined
@@ -82,7 +77,16 @@ export class AuthController extends BaseController {
             ? 'strict'
             : 'none',
       secure: options?.secure !== undefined ? options.secure : true,
-    });
+    };
+  }
+
+  private setCookie(
+    res: Response,
+    key: string,
+    value: string,
+    options?: CookieOptions,
+  ): void {
+    res.cookie(key, value, this.getCookieOptions(options));
   }
 
   private removeCookie(
@@ -90,23 +94,11 @@ export class AuthController extends BaseController {
     key: string,
     options?: CookieOptions,
   ): void {
-    const isProduction = this.utilsService.isProduction();
-    res.clearCookie(key, {
-      domain:
-        options?.domain !== undefined
-          ? options.domain
-          : isProduction
-            ? this.appConfig.domain
-            : 'localhost',
-      httpOnly: options?.httpOnly !== undefined ? options.httpOnly : true,
-      sameSite:
-        options?.sameSite !== undefined
-          ? options.sameSite
-          : isProduction
-            ? 'strict'
-            : 'none',
-      secure: options?.secure !== undefined ? options.secure : true,
-    });
+    res.clearCookie(key, this.getCookieOptions(options));
+  }
+
+  private getAuthCookie(ut: UserType) {
+    return this.utilsService.getCookiePrefix(ut) + 'authToken';
   }
 
   private setAuthCookie(
@@ -116,25 +108,9 @@ export class AuthController extends BaseController {
   ): void {
     const expirationTime = this.config.authCookieExpirationTime();
 
-    this.setCookie(
-      res,
-      this.utilsService.getCookiePrefix(userType) + 'authToken',
-      accessToken,
-      {
-        expires: expirationTime,
-        httpOnly: true,
-      },
-    );
-
-    this.setCookie(
-      res,
-      this.utilsService.getCookiePrefix(userType) + 'isLoggedIn',
-      'true',
-      {
-        expires: expirationTime,
-        httpOnly: false,
-      },
-    );
+    this.setCookie(res, this.getAuthCookie(userType), accessToken, {
+      expires: expirationTime,
+    });
   }
 
   @Post('send-code')
@@ -242,20 +218,7 @@ export class AuthController extends BaseController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const ctx = this.getContext(req);
-    this.removeCookie(
-      res,
-      this.utilsService.getCookiePrefix(ctx.user.type) + 'authToken',
-      {
-        httpOnly: true,
-      },
-    );
-    this.removeCookie(
-      res,
-      this.utilsService.getCookiePrefix(ctx.user.type) + 'isLoggedIn',
-      {
-        httpOnly: false,
-      },
-    );
+    this.removeCookie(res, this.getAuthCookie(ctx.user.type));
     return { status: 'success' };
   }
 

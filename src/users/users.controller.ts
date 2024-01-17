@@ -31,6 +31,7 @@ import {
   UpdateUserProfileRequestDto,
 } from './dto';
 
+@ApiTags('User')
 @ApiBearerAuth()
 @Controller('users')
 export class UsersController extends BaseController {
@@ -38,7 +39,6 @@ export class UsersController extends BaseController {
     super();
   }
 
-  @ApiTags('User')
   @Roles(UserType.Admin)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Get()
@@ -50,7 +50,6 @@ export class UsersController extends BaseController {
     });
   }
 
-  @ApiTags('User')
   @UseGuards(JwtAuthGuard)
   @Get('me')
   async getProfile(@Req() req: AuthenticatedRequest) {
@@ -58,7 +57,6 @@ export class UsersController extends BaseController {
     return await this.usersService.getProfile(ctx.user.id);
   }
 
-  @ApiTags('User')
   @UseGuards(JwtAuthGuard)
   @Patch('me')
   async updateProfileDetails(
@@ -82,7 +80,6 @@ export class UsersController extends BaseController {
     return { status: 'success' };
   }
 
-  @ApiTags('User')
   @Roles(UserType.Admin)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Get(':userId')
@@ -90,7 +87,6 @@ export class UsersController extends BaseController {
     return await this.usersService.getProfile(userId);
   }
 
-  @ApiTags('User')
   @Roles(UserType.Admin)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Patch(':userId')
@@ -111,10 +107,9 @@ export class UsersController extends BaseController {
     });
   }
 
-  @ApiTags('User')
   @UseGuards(JwtAuthGuard)
   @Post('me/profile-image')
-  updateProfile(
+  updateProfileImage(
     @Req() req: AuthenticatedRequest,
     @Body() data: UpdateProfileImageRequestDto,
   ) {
@@ -122,7 +117,6 @@ export class UsersController extends BaseController {
     return this.usersService.updateProfileImage(ctx.user.id, data.profileImage);
   }
 
-  @ApiTags('User')
   @UseGuards(JwtAuthGuard)
   @Post('me/change-password')
   async changePassword(
@@ -138,7 +132,6 @@ export class UsersController extends BaseController {
     return { status: 'success' };
   }
 
-  @ApiTags('User')
   @ApiParam({ name: 'status', enum: UserStatus })
   @Roles(UserType.Admin)
   @UseGuards(JwtAuthGuard, RolesGuard)

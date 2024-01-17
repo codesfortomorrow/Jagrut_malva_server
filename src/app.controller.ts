@@ -7,13 +7,14 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiConsumes, ApiBody, ApiTags } from '@nestjs/swagger';
 import { StorageService, File, JwtAuthGuard } from '@Common';
 
 @Controller()
 export class AppController {
   constructor(private readonly storageService: StorageService) {}
 
+  @ApiTags('Storage')
   @ApiBearerAuth()
   @ApiConsumes('multipart/form-data')
   @ApiBody({

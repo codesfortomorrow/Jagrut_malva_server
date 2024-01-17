@@ -10,19 +10,20 @@ program.option('--table <name>', 'Specify a table name').parse(process.argv);
 async function main() {
   console.log('Running add constraint script...');
 
-  // const options = program.opts();
-  const constraints: Prisma.Sql[] = [];
-
-  // Example
-  // if (!options.table || options.table === 'example') {
-  //   constraints.push(
-  //     Prisma.sql`ALTER TABLE example
-  //       ADD CONSTRAINT amount_check CHECK (amount >= 0)
-  //     ;`,
-  //   );
-  // }
+  const options = program.opts();
 
   await prisma.$transaction(async (tx) => {
+    const constraints: Prisma.Sql[] = [];
+
+    // Example
+    if (!options.table || options.table === 'example') {
+      // constraints.push(
+      //   Prisma.sql`ALTER TABLE example
+      //     ADD CONSTRAINT example_amount_check CHECK (amount >= 0)
+      //   ;`,
+      // );
+    }
+
     await Promise.all(
       constraints.map(async (sql) => await tx.$executeRaw(sql)),
     );

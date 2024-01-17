@@ -1,3 +1,8 @@
+// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/BigInt#use_within_json
+(BigInt.prototype as any).toJSON = function () {
+  return this.toString();
+};
+
 import path from 'path';
 import * as bodyParser from 'body-parser';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
@@ -78,7 +83,14 @@ async function bootstrap() {
     .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api-spec', app, document);
+  SwaggerModule.setup('api-spec', app, document, {
+    customSiteTitle: `${
+      appConfig.platformName || ''
+    } OpenAPI Specification`.trim(),
+    swaggerOptions: {
+      persistAuthorization: true,
+    },
+  });
 
   await app.listen(configService.get('PORT'));
 

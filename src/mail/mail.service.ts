@@ -7,9 +7,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { InjectQueue } from '@nestjs/bullmq';
 import { mailConfigFactory, mailQueueConfigFactory } from '@Config';
-import { UtilsService } from './utils.service';
-import { MAIL_QUEUE } from '../common.constants';
-import { MailTemplate } from '../types';
+import { MAIL_QUEUE } from './mail.constants';
+import { MailTemplate } from './mail.types';
 
 export type SendMessagePayload = {
   to: string;
@@ -30,7 +29,6 @@ export class MailService {
     private readonly queueConfig: ConfigType<typeof mailQueueConfigFactory>,
     @InjectQueue(MAIL_QUEUE)
     private readonly mailQueue: Queue<SendMessagePayload, SentMessageInfo>,
-    private readonly utilsService: UtilsService,
   ) {
     this.transporter = nodemailer.createTransport({
       host: this.config.host,
@@ -72,13 +70,6 @@ export class MailService {
   }
 
   async send(mailPayload: SendMessagePayload): Promise<void> {
-    await this.mailQueue.add('send', mailPayload, {
-      removeOnComplete: {
-        age: this.utilsService.msToSec(this.queueConfig.removeCompletedAfter),
-      },
-      removeOnFail: {
-        age: this.utilsService.msToSec(this.queueConfig.removeFailedAfter),
-      },
-    });
+    await this.mailQueue.add('send', mailPayload, this.queueConfig.options);
   }
 }

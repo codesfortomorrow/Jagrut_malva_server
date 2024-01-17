@@ -24,23 +24,23 @@ import {
   UpdateProfileImageRequestDto,
 } from './dto';
 
-@ApiBearerAuth()
 @ApiTags('Admin')
+@ApiBearerAuth()
 @Roles(UserType.Admin)
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Controller()
+@Controller('admin')
 export class AdminController extends BaseController {
   constructor(private readonly adminService: AdminService) {
     super();
   }
 
-  @Get('admin')
+  @Get()
   async getProfile(@Req() req: AuthenticatedRequest) {
     const ctx = this.getContext(req);
     return await this.adminService.getProfile(ctx.user.id);
   }
 
-  @Patch('admin')
+  @Patch()
   async updateProfileDetails(
     @Req() req: AuthenticatedRequest,
     @Body() data: UpdateProfileDetailsRequestDto,
@@ -55,8 +55,8 @@ export class AdminController extends BaseController {
     return { status: 'success' };
   }
 
-  @Post('admin/profile-image')
-  updateProfile(
+  @Post('profile-image')
+  updateProfileImage(
     @Req() req: AuthenticatedRequest,
     @Body() data: UpdateProfileImageRequestDto,
   ) {
@@ -64,7 +64,7 @@ export class AdminController extends BaseController {
     return this.adminService.updateProfileImage(ctx.user.id, data.profileImage);
   }
 
-  @Post('admin/change-password')
+  @Post('change-password')
   async changePassword(
     @Req() req: AuthenticatedRequest,
     @Body() data: ChangePasswordRequestDto,
@@ -78,7 +78,7 @@ export class AdminController extends BaseController {
     return { status: 'success' };
   }
 
-  @Post('admin/authenticate')
+  @Post('authenticate')
   async authenticate(
     @Req() req: AuthenticatedRequest,
     @Body() data: AuthenticateRequestDto,

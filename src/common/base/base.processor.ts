@@ -1,12 +1,12 @@
 import { OnModuleInit, Logger } from '@nestjs/common';
-import { OnQueueEvent, OnWorkerEvent, WorkerHost } from '@nestjs/bullmq';
+import { OnWorkerEvent, WorkerHost } from '@nestjs/bullmq';
 
 export abstract class BaseProcessor extends WorkerHost implements OnModuleInit {
   protected readonly logger;
 
   constructor(
     readonly name: string,
-    private readonly concurrency: number,
+    private readonly concurrency = 1,
   ) {
     super();
     this.logger = new Logger(name);
@@ -21,12 +21,7 @@ export abstract class BaseProcessor extends WorkerHost implements OnModuleInit {
   }
 
   @OnWorkerEvent('error')
-  onWorkerError(err: Error): void {
-    this.logger.error(err);
-  }
-
-  @OnQueueEvent('error')
-  onQueueError(err: Error): void {
+  onError(err: Error): void {
     this.logger.error(err);
   }
 }

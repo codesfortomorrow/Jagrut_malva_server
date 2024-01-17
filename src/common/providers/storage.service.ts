@@ -41,7 +41,6 @@ export class StorageService {
         if (this.config.fileExtensions.includes(extension)) {
           cb(null, true);
         } else {
-          console.log('here');
           cb(
             new Error(
               `Unsupported file type, Only allowed ${this.config.fileExtensions.join(

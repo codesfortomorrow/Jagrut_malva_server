@@ -11,8 +11,7 @@ generator client {
 }
 
 enum AdminStatus {
-  Active   @map("active")
-  Inactive @map("inactive")
+  Active @map("active")
 
   @@map("admin_status")
 }
@@ -41,8 +40,8 @@ model AdminMeta {
 }
 
 enum UserStatus {
-  Active   @map("active")
-  Inactive @map("inactive")
+  Active  @map("active")
+  Blocked @map("blocked")
 
   @@map("user_status")
 }

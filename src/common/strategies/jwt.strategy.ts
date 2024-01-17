@@ -3,13 +3,16 @@ import { URL } from 'node:url';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
 import { Inject, Injectable } from '@nestjs/common';
-import { ConfigType } from '@nestjs/config';
+import { ConfigService, ConfigType } from '@nestjs/config';
 import { jwtConfigFactory } from '@Config';
-import { AuthenticatedUser, Environment, JwtPayload, UserType } from '../types';
+import { AuthenticatedUser, JwtPayload, UserType } from '../types';
+import { UtilsService } from '../providers';
 import { JWT_AUTH } from '../common.constants';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, JWT_AUTH) {
+  private static readonly utilsService = new UtilsService(new ConfigService());
+
   constructor(
     @Inject(jwtConfigFactory.KEY)
     config: ConfigType<typeof jwtConfigFactory>,
@@ -24,41 +27,31 @@ export class JwtStrategy extends PassportStrategy(Strategy, JWT_AUTH) {
     });
   }
 
-  private static getCookiePrefix(ut: UserType) {
-    if (
-      process.env.NODE_ENV !== Environment.Production ||
-      process.env.APP_ENV === Environment.Production
-    ) {
-      return `__${ut}__`;
-    } else {
-      return `${process.env.APP_ENV}__${ut}__`;
-    }
+  private static getAuthCookie(ut: UserType) {
+    return JwtStrategy.utilsService.getCookiePrefix(ut) + 'authToken';
   }
 
   private static fromCookie(req: Request): string | null {
     if (req.headers.referer) {
-      const requestedDomain = new URL(req.headers.referer).host;
+      let authCookie: string | null = null;
 
+      const requestedDomain = new URL(req.headers.referer).host;
       if (
         process.env.ADMIN_WEB_URL &&
-        requestedDomain === new URL(process.env.ADMIN_WEB_URL).host &&
-        req.cookies &&
-        JwtStrategy.getCookiePrefix(UserType.Admin) + 'authToken' in req.cookies
+        requestedDomain === new URL(process.env.ADMIN_WEB_URL).host
       ) {
-        return req.cookies[
-          JwtStrategy.getCookiePrefix(UserType.Admin) + 'authToken'
-        ];
+        authCookie = JwtStrategy.getAuthCookie(UserType.Admin);
       }
 
       if (
         process.env.APP_WEB_URL &&
-        requestedDomain === new URL(process.env.APP_WEB_URL).host &&
-        req.cookies &&
-        JwtStrategy.getCookiePrefix(UserType.User) + 'authToken' in req.cookies
+        requestedDomain === new URL(process.env.APP_WEB_URL).host
       ) {
-        return req.cookies[
-          JwtStrategy.getCookiePrefix(UserType.User) + 'authToken'
-        ];
+        authCookie = JwtStrategy.getAuthCookie(UserType.User);
+      }
+
+      if (authCookie) {
+        return req.cookies[authCookie];
       }
     }
 

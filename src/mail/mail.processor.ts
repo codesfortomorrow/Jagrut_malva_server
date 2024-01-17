@@ -3,10 +3,10 @@ import { SentMessageInfo } from 'nodemailer/lib/smtp-transport';
 import { Inject } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { Processor } from '@nestjs/bullmq';
+import { BaseProcessor } from '@Common';
 import { mailQueueConfigFactory } from '@Config';
-import { MAIL_QUEUE } from '../common.constants';
-import { MailService, SendMessagePayload } from '../providers';
-import { BaseProcessor } from '../base';
+import { MAIL_QUEUE } from './mail.constants';
+import { MailService, SendMessagePayload } from './mail.service';
 
 @Processor(MAIL_QUEUE)
 export class MailProcessor extends BaseProcessor {

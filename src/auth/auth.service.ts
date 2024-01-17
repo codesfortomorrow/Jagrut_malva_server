@@ -1,9 +1,7 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { ConfigType } from '@nestjs/config';
+import { Injectable } from '@nestjs/common';
 import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import { OtpTransport, User } from '@prisma/client';
 import { JwtPayload, UserType } from '@Common';
-import { appConfigFactory } from '@Config';
 import { SendCodeRequestType } from './dto';
 import { UsersService } from '../users';
 import {
@@ -26,8 +24,6 @@ export type InvalidVerifyCodeResponse = {
 @Injectable()
 export class AuthService {
   constructor(
-    @Inject(appConfigFactory.KEY)
-    private readonly appConfig: ConfigType<typeof appConfigFactory>,
     private readonly jwtService: JwtService,
     private readonly usersService: UsersService,
     private readonly otpService: OtpService,
