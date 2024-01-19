@@ -1,10 +1,10 @@
+import { Redis } from 'ioredis';
 import {
   Injectable,
   OnApplicationShutdown,
   OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Redis } from 'ioredis';
 import { EnvironmentVariables } from '@Common';
 
 @Injectable()

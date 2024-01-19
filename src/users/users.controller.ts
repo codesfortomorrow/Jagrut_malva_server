@@ -33,6 +33,7 @@ import {
 
 @ApiTags('User')
 @ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('users')
 export class UsersController extends BaseController {
   constructor(private readonly usersService: UsersService) {
@@ -40,7 +41,7 @@ export class UsersController extends BaseController {
   }
 
   @Roles(UserType.Admin)
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Get()
   async getUsers(@Query() query: GetUsersRequestDto) {
     return await this.usersService.getAll({
@@ -50,14 +51,12 @@ export class UsersController extends BaseController {
     });
   }
 
-  @UseGuards(JwtAuthGuard)
   @Get('me')
   async getProfile(@Req() req: AuthenticatedRequest) {
     const ctx = this.getContext(req);
     return await this.usersService.getProfile(ctx.user.id);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Patch('me')
   async updateProfileDetails(
     @Req() req: AuthenticatedRequest,
@@ -81,14 +80,14 @@ export class UsersController extends BaseController {
   }
 
   @Roles(UserType.Admin)
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Get(':userId')
   async getUserProfile(@Param('userId', ParseUUIDPipe) userId: string) {
     return await this.usersService.getProfile(userId);
   }
 
   @Roles(UserType.Admin)
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Patch(':userId')
   async updateUserProfileDetails(
     @Param('userId', ParseUUIDPipe) userId: string,
@@ -107,7 +106,6 @@ export class UsersController extends BaseController {
     });
   }
 
-  @UseGuards(JwtAuthGuard)
   @Post('me/profile-image')
   updateProfileImage(
     @Req() req: AuthenticatedRequest,
@@ -117,7 +115,6 @@ export class UsersController extends BaseController {
     return this.usersService.updateProfileImage(ctx.user.id, data.profileImage);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Post('me/change-password')
   async changePassword(
     @Req() req: AuthenticatedRequest,
@@ -134,7 +131,7 @@ export class UsersController extends BaseController {
 
   @ApiParam({ name: 'status', enum: UserStatus })
   @Roles(UserType.Admin)
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Post(':userId/:status')
   async setUserStatus(
     @Param('userId', ParseUUIDPipe) userId: string,

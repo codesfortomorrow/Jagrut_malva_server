@@ -1,5 +1,5 @@
+import { URL } from 'url';
 import { Request } from 'express';
-import { URL } from 'node:url';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
 import { Inject, Injectable } from '@nestjs/common';
