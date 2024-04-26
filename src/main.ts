@@ -5,6 +5,7 @@
 
 import path from 'path';
 import * as bodyParser from 'body-parser';
+import compression from 'compression';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService, ConfigType } from '@nestjs/config';
 import { ValidationPipe } from '@nestjs/common';
@@ -15,6 +16,7 @@ import cookieParser from 'cookie-parser';
 import {
   AllExceptionsFilter,
   EnvironmentVariables,
+  LoggerService,
   UtilsService,
 } from '@Common';
 import { appConfigFactory } from '@Config';
@@ -23,6 +25,7 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  const logger = new LoggerService();
   const configService = app.get(ConfigService<EnvironmentVariables, true>);
   const utilsService = app.get(UtilsService);
   const appConfig = app.get<ConfigType<typeof appConfigFactory>>(
@@ -36,6 +39,7 @@ async function bootstrap() {
       extended: true,
     }),
   );
+  app.use(compression({ level: 1 }));
   const origins = appConfig.domain
     ? [
         new RegExp(
@@ -53,19 +57,21 @@ async function bootstrap() {
       transformOptions: { enableImplicitConversion: true },
     }),
   );
-  app.useGlobalFilters(
-    new AllExceptionsFilter(app.get(HttpAdapterHost), app.get(UtilsService)),
-  );
+  app.useGlobalFilters(new AllExceptionsFilter(app.get(HttpAdapterHost)));
   app.enableCors({
-    origin: utilsService.isProduction()
+    origin: utilsService.isProductionApp()
       ? origins
-      : [/^http:\/\/localhost:[0-9]+$/, ...origins],
+      : [
+          'null',
+          new RegExp(`^http[s]{0,1}://(?:127.0.0.1|localhost)(:[0-9]+)*$`),
+          ...origins,
+        ],
     credentials: true,
   });
   app.use(cookieParser());
   app.use(
     helmet.crossOriginResourcePolicy({
-      policy: utilsService.isProduction() ? 'same-site' : 'cross-origin',
+      policy: utilsService.isProductionApp() ? 'same-site' : 'cross-origin',
     }),
   );
   app.enableShutdownHooks();
@@ -100,11 +106,11 @@ async function bootstrap() {
   }
 
   process.on('uncaughtException', (err) => {
-    console.error('Uncaught exception', err);
+    logger.error('Uncaught exception', err);
   });
 
   process.on('unhandledRejection', (reason, promise) => {
-    console.error('Unhandled Rejection at: Promise', { promise, reason });
+    logger.error('Unhandled Rejection', { promise, reason });
   });
 }
 bootstrap();

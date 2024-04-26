@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiConsumes, ApiBody, ApiTags } from '@nestjs/swagger';
-import { StorageService, File, JwtAuthGuard } from '@Common';
+import { StorageService, File, JwtAuthGuard, AccessGuard } from '@Common';
 
 @Controller()
 export class AppController {
@@ -29,7 +29,7 @@ export class AppController {
       },
     },
   })
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, AccessGuard)
   @UseInterceptors(FileInterceptor('file'))
   @Post('upload')
   upload(@UploadedFile(new ParseFilePipeBuilder().build()) file: File) {

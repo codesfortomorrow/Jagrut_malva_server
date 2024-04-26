@@ -64,11 +64,7 @@ export class AuthController extends BaseController {
     return {
       expires: options?.expires,
       domain:
-        options?.domain !== undefined
-          ? options.domain
-          : isProduction
-            ? this.appConfig.domain
-            : 'localhost',
+        options?.domain !== undefined ? options.domain : this.appConfig.domain,
       httpOnly: options?.httpOnly !== undefined ? options.httpOnly : true,
       sameSite:
         options?.sameSite !== undefined

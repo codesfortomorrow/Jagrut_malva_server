@@ -512,69 +512,51 @@ export class UsersService {
     take: number;
     data: User[];
   }> {
+    const pagination = { skip: options?.skip || 0, take: options?.take || 10 };
     const where: Prisma.UserWhereInput = {};
     if (options?.search) {
+      const buildSearchFilter = (search: string): Prisma.UserWhereInput[] => [
+        {
+          firstname: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          lastname: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          username: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          email: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          mobile: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+      ];
       const search = options.search.trim().split(' ');
-      if (search.length) {
+      if (search.length === 0) {
+        where.OR = buildSearchFilter(options.search);
+      } else {
         where.AND = [];
-
         for (const part of search) {
           where.AND.push({
-            OR: [
-              {
-                firstname: {
-                  contains: part,
-                  mode: 'insensitive',
-                },
-              },
-              {
-                lastname: {
-                  contains: part,
-                  mode: 'insensitive',
-                },
-              },
-              {
-                username: {
-                  contains: part,
-                  mode: 'insensitive',
-                },
-              },
-              {
-                email: {
-                  contains: part,
-                  mode: 'insensitive',
-                },
-              },
-            ],
+            OR: buildSearchFilter(part),
           });
         }
-      } else {
-        where.OR = [
-          {
-            firstname: {
-              contains: options.search,
-              mode: 'insensitive',
-            },
-          },
-          {
-            lastname: {
-              contains: options.search,
-              mode: 'insensitive',
-            },
-          },
-          {
-            username: {
-              contains: options.search,
-              mode: 'insensitive',
-            },
-          },
-          {
-            email: {
-              contains: options.search,
-              mode: 'insensitive',
-            },
-          },
-        ];
       }
     }
 
@@ -600,8 +582,8 @@ export class UsersService {
 
     return {
       count: totalUsers,
-      skip: options?.skip || 0,
-      take: options?.take || 10,
+      skip: pagination.skip,
+      take: pagination.take,
       data: response,
     };
   }

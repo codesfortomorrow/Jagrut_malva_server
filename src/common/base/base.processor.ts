@@ -1,15 +1,20 @@
-import { OnModuleInit, Logger } from '@nestjs/common';
+import { Job } from 'bullmq';
+import { OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
 import { OnWorkerEvent, WorkerHost } from '@nestjs/bullmq';
+import { LoggerService } from '../providers';
 
-export abstract class BaseProcessor extends WorkerHost implements OnModuleInit {
-  protected readonly logger;
+export abstract class BaseProcessor
+  extends WorkerHost
+  implements OnModuleInit, OnApplicationShutdown
+{
+  protected readonly logger: LoggerService;
 
   constructor(
-    readonly name: string,
     private readonly concurrency = 1,
+    options?: { loggerDefaultMeta?: any },
   ) {
     super();
-    this.logger = new Logger(name);
+    this.logger = new LoggerService(options?.loggerDefaultMeta);
   }
 
   onModuleInit() {
@@ -18,6 +23,11 @@ export abstract class BaseProcessor extends WorkerHost implements OnModuleInit {
 
   async onApplicationShutdown(): Promise<void> {
     await this.worker.close();
+  }
+
+  @OnWorkerEvent('failed')
+  onFailed(job: Job, err: Error): void {
+    this.logger.error(err);
   }
 
   @OnWorkerEvent('error')

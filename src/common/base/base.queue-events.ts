@@ -1,12 +1,12 @@
-import { Logger } from '@nestjs/common';
 import { OnQueueEvent, QueueEventsHost } from '@nestjs/bullmq';
+import { LoggerService } from '../providers';
 
 export abstract class BaseQueueEvents extends QueueEventsHost {
-  protected readonly logger;
+  protected readonly logger: LoggerService;
 
-  constructor(readonly name: string) {
+  constructor(options?: { loggerDefaultMeta?: any }) {
     super();
-    this.logger = new Logger(name);
+    this.logger = new LoggerService(options?.loggerDefaultMeta);
   }
 
   @OnQueueEvent('error')

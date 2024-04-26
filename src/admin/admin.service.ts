@@ -1,9 +1,17 @@
 import { join } from 'path';
+import { Cache } from 'cache-manager';
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Admin, AdminMeta, AdminStatus } from '@prisma/client';
 import { adminConfigFactory } from '@Config';
-import { StorageService, UtilsService, ValidatedUser, UserType } from '@Common';
+import {
+  StorageService,
+  UtilsService,
+  ValidatedUser,
+  UserType,
+  getAccessGuardCacheKey,
+} from '@Common';
 import { PrismaService } from '../prisma';
 
 @Injectable()
@@ -11,6 +19,7 @@ export class AdminService {
   constructor(
     @Inject(adminConfigFactory.KEY)
     private readonly config: ConfigType<typeof adminConfigFactory>,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private readonly prisma: PrismaService,
     private readonly utilsService: UtilsService,
     private readonly storageService: StorageService,
@@ -86,6 +95,11 @@ export class AdminService {
   ): Promise<ValidatedUser | false | null> {
     const admin = await this.getByEmail(email);
     if (!admin) return null;
+    if (admin.status !== AdminStatus.Active) {
+      throw new Error(
+        'Your account has been temporarily suspended/blocked by the system',
+      );
+    }
 
     const adminMeta = await this.getMetaById(admin.id);
     const passwordHash = this.utilsService.hashPassword(
@@ -200,6 +214,9 @@ export class AdminService {
   }
 
   async setStatus(userId: string, status: AdminStatus): Promise<Admin> {
+    await this.cacheManager.del(
+      getAccessGuardCacheKey({ id: userId, type: UserType.Admin }),
+    );
     return await this.prisma.admin.update({
       data: { status },
       where: {

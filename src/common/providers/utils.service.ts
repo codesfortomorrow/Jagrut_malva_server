@@ -1,14 +1,19 @@
+import os from 'os';
 import crypto from 'crypto';
 import { customAlphabet } from 'nanoid';
 import _ from 'lodash';
+import { isAxiosError } from 'axios';
 import { plainToInstance } from 'class-transformer';
 import { validateOrReject } from 'class-validator';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { LoggerService } from './logger.service';
 import { Environment, EnvironmentVariables, UserType } from '../types';
 
 @Injectable()
 export class UtilsService {
+  private readonly logger = new LoggerService();
+
   constructor(
     private readonly configService: ConfigService<EnvironmentVariables, true>,
   ) {}
@@ -47,11 +52,25 @@ export class UtilsService {
     return nanoid(length);
   }
 
-  toEnumValue<T>(value: string | number, capitalize = true): T {
+  toEnumValue<T extends Record<string, string>>(
+    value: string | number,
+    type: T,
+    capitalize = true,
+  ): keyof T {
     if (typeof value === 'string' && capitalize) {
-      value = _.capitalize(value);
+      value = value
+        .split('_')
+        .map((part) => _.capitalize(part))
+        .join('');
     }
-    return value as T;
+
+    const possibleValues = Object.keys(type as Record<string, string>);
+    if (possibleValues.includes(value.toString())) {
+      return value as keyof T;
+    }
+    throw new Error(
+      `Unknown enum value '${value}' found, possible values are ${possibleValues.toString()}`,
+    );
   }
 
   exclude<T, Key extends keyof T>(
@@ -147,17 +166,41 @@ export class UtilsService {
     return await new Promise((resolve) => setTimeout(resolve, ms));
   }
 
+  async waitUntilValue<T = any>(
+    currentValue: T,
+    targetValue: T,
+    interval = 1000,
+    timeout?: number,
+  ): Promise<void> {
+    const startTime = Date.now();
+
+    while (currentValue !== targetValue) {
+      if (timeout && Date.now() - startTime > timeout) {
+        throw new Error(
+          `Timeout occurred while waiting for the "${currentValue}" to reach the target value ${targetValue}`,
+        );
+      }
+      await this.sleep(interval);
+    }
+  }
+
   async rerunnable<T>(
     fn: () => Promise<T>,
-    maxRetries: number,
-    sleep?: number,
+    maxRetries = 3,
+    backoff: { type: 'fixed' | 'exponential'; delay: number } = {
+      type: 'exponential',
+      delay: 1000,
+    },
   ): Promise<T> {
     let attempt = 0;
 
     do {
-      attempt++;
-      if (attempt > 1 && sleep) {
-        await this.sleep(sleep);
+      if (attempt > 0) {
+        let delay = backoff.delay;
+        if (backoff.type === 'exponential') {
+          delay = backoff.delay * Math.pow(2, attempt - 2);
+        }
+        await this.sleep(delay);
       }
 
       try {
@@ -166,10 +209,49 @@ export class UtilsService {
         if (attempt === maxRetries) {
           throw err;
         }
+        attempt++;
       }
-    } while (attempt < maxRetries);
+    } while (attempt <= maxRetries);
 
     throw new Error('Unexpected error occurred');
+  }
+
+  async retryable<T>(
+    fn: () => Promise<T>,
+    options?: {
+      backoff?: { type: 'fixed' | 'exponential'; delay: number };
+      silent?: boolean;
+    },
+  ): Promise<T> {
+    const backoff = options?.backoff || {
+      type: 'fixed',
+      delay: 1000,
+    };
+
+    let attempt = 0;
+    do {
+      if (attempt > 0) {
+        let delay = backoff.delay;
+        if (backoff.type === 'exponential') {
+          delay = backoff.delay * Math.pow(2, attempt - 2);
+        }
+        await this.sleep(delay);
+      }
+
+      try {
+        return await fn();
+      } catch (err) {
+        if (!options?.silent) {
+          if (isAxiosError(err)) {
+            this.logger.error(err.toJSON());
+          } else {
+            this.logger.error(err);
+          }
+        }
+
+        attempt++;
+      }
+    } while (true);
   }
 
   async occrunnable<T>(fn: () => Promise<T>): Promise<T> {
@@ -182,5 +264,31 @@ export class UtilsService {
         }
       }
     } while (true);
+  }
+
+  async batchable<T, R>(
+    elements: T[],
+    fn: (element: T, index: number) => Promise<R>,
+    batchSize = Math.pow(os.cpus().length, 2),
+  ): Promise<R[]> {
+    const results: R[] = [];
+    const processes: Promise<void>[] = [];
+
+    let currentIndex = 0;
+    for (let i = 0; i < Math.min(batchSize, elements.length); i++) {
+      const process = async () => {
+        while (currentIndex < elements.length) {
+          const index = currentIndex++;
+          const element = elements[index];
+          results[index] = await fn(element, index);
+        }
+      };
+      processes.push(process());
+    }
+
+    // Wait for all processes to finish
+    await Promise.all(processes);
+
+    return results;
   }
 }

@@ -28,6 +28,8 @@ export class RedisService implements OnModuleInit, OnApplicationShutdown {
   }
 
   async onApplicationShutdown() {
-    await this.client.quit();
+    if (this.client) {
+      await this.client.quit();
+    }
   }
 }

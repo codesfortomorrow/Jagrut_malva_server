@@ -15,7 +15,9 @@ export class MailProcessor extends BaseProcessor {
     readonly config: ConfigType<typeof mailQueueConfigFactory>,
     private readonly mailService: MailService,
   ) {
-    super(MailProcessor.name, config.concurrency);
+    super(config.concurrency, {
+      loggerDefaultMeta: { processor: MailProcessor.name },
+    });
   }
 
   async process(

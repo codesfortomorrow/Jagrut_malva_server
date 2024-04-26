@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { MulterModule } from '@nestjs/platform-express';
 import { ScheduleModule } from '@nestjs/schedule';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { CacheInterceptor, CacheModule } from '@nestjs/cache-manager';
 import { CommonModule, StorageService } from '@Common';
 import { AppController } from './app.controller';
 import { PrismaModule } from './prisma';
@@ -16,6 +18,7 @@ import { RedisModule } from './redis';
       }),
       inject: [StorageService],
     }),
+    CacheModule.register({ isGlobal: true }),
     EventEmitterModule.forRoot(),
     ScheduleModule.forRoot(),
     CommonModule,
@@ -24,5 +27,11 @@ import { RedisModule } from './redis';
     AuthModule,
   ],
   controllers: [AppController],
+  providers: [
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: CacheInterceptor,
+    },
+  ],
 })
 export class AppModule {}

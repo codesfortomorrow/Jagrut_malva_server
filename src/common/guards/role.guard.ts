@@ -7,7 +7,7 @@ export const Roles = (...roles: UserType[]) => SetMetadata('roles', roles);
 
 @Injectable()
 export class RolesGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
+  constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
     // Get the roles required

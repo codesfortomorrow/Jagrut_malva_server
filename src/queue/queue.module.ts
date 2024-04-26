@@ -15,6 +15,10 @@ export class QueueModule {
         connection: new Redis(configService.get('REDIS_URI'), {
           maxRetriesPerRequest: null,
         }),
+        defaultJobOptions: {
+          removeOnComplete: true,
+          removeOnFail: true,
+        },
       }),
       inject: [ConfigService],
     });

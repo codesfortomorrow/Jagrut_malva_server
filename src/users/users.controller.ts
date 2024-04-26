@@ -21,6 +21,7 @@ import {
   RolesGuard,
   UserType,
   Roles,
+  AccessGuard,
 } from '@Common';
 import { UsersService } from './users.service';
 import {
@@ -33,7 +34,7 @@ import {
 
 @ApiTags('User')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, AccessGuard)
 @Controller('users')
 export class UsersController extends BaseController {
   constructor(private readonly usersService: UsersService) {

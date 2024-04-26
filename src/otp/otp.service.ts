@@ -2,7 +2,7 @@ import dayjs from 'dayjs';
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { Otp, OtpTransport, Prisma } from '@prisma/client';
-import { appConfigFactory, otpConfigFactory } from '@Config';
+import { otpConfigFactory } from '@Config';
 import { UtilsService } from '@Common';
 import { PrismaService } from '../prisma';
 import {
@@ -10,6 +10,7 @@ import {
   RegisterVerificationCodeMailTemplate,
   ResetPasswordVerificationCodeMailTemplate,
 } from '../mail';
+import { SmsService } from '../sms';
 
 export type SendCodeResponse = {
   sentAt: Date;
@@ -30,8 +31,7 @@ export enum OtpContext {
 }
 
 type OtpSmsParams = {
-  code: string;
-  expirationTime: string;
+  text: string;
 };
 
 type OtpMailParams = {
@@ -56,13 +56,12 @@ type OtpMailTemplate =
 @Injectable()
 export class OtpService {
   constructor(
-    @Inject(appConfigFactory.KEY)
-    private readonly appConfig: ConfigType<typeof appConfigFactory>,
     @Inject(otpConfigFactory.KEY)
     private readonly config: ConfigType<typeof otpConfigFactory>,
     private readonly prisma: PrismaService,
     private readonly utilsService: UtilsService,
     private readonly mailService: MailService,
+    private readonly smsService: SmsService,
   ) {}
 
   private blockError(target: string, blockTimeout: number): Error {
@@ -125,27 +124,22 @@ export class OtpService {
     });
   }
 
-  // TODO: Configure sms gateway to send an sms
-  private async sendSMS(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    target: string,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    params: OtpSmsParams,
-  ): Promise<void> {
+  private sendSMS(target: string, params: OtpSmsParams): void {
     if (!this.utilsService.isProductionApp()) return;
+
+    this.smsService.send(target, params.text).catch((err) => err);
   }
 
-  private async sendEmail(
-    target: string,
-    params: OtpMailParams,
-  ): Promise<void> {
+  private sendEmail(target: string, params: OtpMailParams): void {
     if (!this.utilsService.isProductionApp()) return;
 
-    await this.mailService.send({
-      to: target,
-      subject: params.subject,
-      mailBodyOrTemplate: params.template,
-    });
+    this.mailService
+      .send({
+        to: target,
+        subject: params.subject,
+        mailBodyOrTemplate: params.template,
+      })
+      .catch((err) => err);
   }
 
   private getContextMailParams(args: {
@@ -182,22 +176,45 @@ export class OtpService {
     }
   }
 
-  private async sendCodeOnTarget(
+  private getContextSmsParams(args: {
+    context: OtpContext;
+    code: string;
+    timeout: number;
+  }): OtpSmsParams {
+    switch (args.context) {
+      case OtpContext.Register:
+        return {
+          text: `Your one time verification code is ${args.code} to register, Please do not share this code to anyone. This verification code will be expired after ${this.utilsService.msToHuman(args.timeout)}`,
+        };
+      case OtpContext.ResetPassword:
+        return {
+          text: `Your one time verification code is ${args.code} to reset password, Please do not share this code to anyone. This verification code will be expired after ${this.utilsService.msToHuman(args.timeout)}`,
+        };
+      default:
+        throw new Error('Unknown otp context found');
+    }
+  }
+
+  private sendCodeOnTarget(
     args: {
       target: string;
       code: string;
       timeout: number;
     } & OtpTransportPayload,
-  ): Promise<void> {
+  ): void {
     if (args.transport === OtpTransport.Mobile) {
-      return await this.sendSMS(args.target, {
-        code: args.code,
-        expirationTime: this.utilsService.msToHuman(args.timeout),
-      });
+      return this.sendSMS(
+        args.target,
+        this.getContextSmsParams({
+          context: args.context,
+          code: args.code,
+          timeout: args.timeout,
+        }),
+      );
     }
 
     if (args.transport === OtpTransport.Email) {
-      return await this.sendEmail(
+      return this.sendEmail(
         args.target,
         this.getContextMailParams({
           context: args.context,
@@ -229,10 +246,7 @@ export class OtpService {
     let otp = await this.find(args.target, args.transport);
 
     if (!otp) {
-      const code =
-        args.transport === OtpTransport.Mobile
-          ? this.config.default
-          : this.generateCode(config.length);
+      const code = this.generateCode(config.length);
       otp = await this.prisma.otp.create({
         data: {
           code,
@@ -241,7 +255,7 @@ export class OtpService {
           transport: args.transport,
         },
       });
-      await this.sendCodeOnTarget({
+      this.sendCodeOnTarget({
         context: args.context,
         target: args.target,
         code,
@@ -289,7 +303,7 @@ export class OtpService {
         blocked: false,
         lastCodeVerified: false,
       });
-      await this.sendCodeOnTarget({
+      this.sendCodeOnTarget({
         context: args.context,
         target: args.target,
         code,
