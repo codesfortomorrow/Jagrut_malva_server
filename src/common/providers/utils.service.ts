@@ -269,7 +269,7 @@ export class UtilsService {
   async batchable<T, R>(
     elements: T[],
     fn: (element: T, index: number) => Promise<R>,
-    batchSize = Math.pow(os.cpus().length, 2),
+    batchSize = os.cpus().length * 4,
   ): Promise<R[]> {
     const results: R[] = [];
     const processes: Promise<void>[] = [];
