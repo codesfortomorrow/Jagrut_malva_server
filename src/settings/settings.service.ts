@@ -17,7 +17,7 @@ export class SettingsService {
   constructor(private readonly prisma: PrismaService) {}
 
   private async upsertUserSetting(
-    userId: string,
+    userId: number,
     settingId: number,
     selection: Prisma.InputJsonValue,
   ): Promise<UserSetting> {
@@ -147,7 +147,7 @@ export class SettingsService {
     });
   }
 
-  async getUserSettings(userId: string, mappedTo?: string) {
+  async getUserSettings(userId: number, mappedTo?: string) {
     const allSettings = await this.getAll(SettingContext.User, {
       mappedTo,
     });
@@ -177,7 +177,7 @@ export class SettingsService {
   }
 
   async updateUserSetting(data: {
-    userId: string;
+    userId: number;
     settingId: number;
     enable?: boolean;
     selection?: string;

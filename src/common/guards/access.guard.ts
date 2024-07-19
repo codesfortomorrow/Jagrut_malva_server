@@ -11,7 +11,7 @@ import { AdminStatus, UserStatus } from '@prisma/client';
 import { AuthenticatedUser, UserType } from '../types';
 import { PrismaService } from '../../prisma';
 
-export const getAccessGuardCacheKey = (user: AuthenticatedUser) =>
+export const getAccessGuardCacheKey = (user: { id: number; type: string }) =>
   `${user.type}-${user.id}-access`.toLowerCase();
 
 @Injectable()

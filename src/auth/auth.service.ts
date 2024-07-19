@@ -69,7 +69,7 @@ export class AuthService {
     throw new Error('Unknown send code request type found');
   }
 
-  async login(userId: string, type: UserType): Promise<ValidAuthResponse> {
+  async login(userId: number, type: UserType): Promise<ValidAuthResponse> {
     return {
       accessToken: this.generateJwt({
         sub: userId,

@@ -5,7 +5,7 @@ import {
   Get,
   Param,
   ParseEnumPipe,
-  ParseUUIDPipe,
+  ParseIntPipe,
   Patch,
   Post,
   Query,
@@ -83,7 +83,7 @@ export class UsersController extends BaseController {
   @Roles(UserType.Admin)
   @UseGuards(RolesGuard)
   @Get(':userId')
-  async getUserProfile(@Param('userId', ParseUUIDPipe) userId: string) {
+  async getUserProfile(@Param('userId', ParseIntPipe) userId: number) {
     return await this.usersService.getProfile(userId);
   }
 
@@ -91,7 +91,7 @@ export class UsersController extends BaseController {
   @UseGuards(RolesGuard)
   @Patch(':userId')
   async updateUserProfileDetails(
-    @Param('userId', ParseUUIDPipe) userId: string,
+    @Param('userId', ParseIntPipe) userId: number,
     @Body() data: UpdateUserProfileRequestDto,
   ) {
     return await this.usersService.updateProfileDetailsByAdministrator({
@@ -135,7 +135,7 @@ export class UsersController extends BaseController {
   @UseGuards(RolesGuard)
   @Post(':userId/:status')
   async setUserStatus(
-    @Param('userId', ParseUUIDPipe) userId: string,
+    @Param('userId', ParseIntPipe) userId: number,
     @Param('status', new ParseEnumPipe(UserStatus)) status: UserStatus,
   ) {
     await this.usersService.setStatus(userId, status);

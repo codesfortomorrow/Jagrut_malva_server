@@ -17,7 +17,7 @@ enum AdminStatus {
 }
 
 model Admin {
-  id           String      @id @default(uuid()) @db.Uuid
+  id           Int         @id @default(autoincrement())
   firstname    String
   lastname     String
   email        String      @unique
@@ -34,7 +34,7 @@ model AdminMeta {
   passwordSalt String? @map("password_salt")
   passwordHash String? @map("password_hash")
   admin        Admin   @relation(fields: [adminId], references: [id])
-  adminId      String  @unique() @map("admin_id") @db.Uuid
+  adminId      Int     @unique() @map("admin_id")
 
   @@map("admin_meta")
 }
@@ -47,7 +47,7 @@ enum UserStatus {
 }
 
 model User {
-  id           String        @id @default(uuid()) @db.Uuid
+  id           Int           @id @default(autoincrement())
   firstname    String
   lastname     String
   username     String?       @unique
@@ -71,7 +71,7 @@ model UserMeta {
   passwordSalt String? @map("password_salt")
   passwordHash String? @map("password_hash")
   user         User    @relation(fields: [userId], references: [id])
-  userId       String  @unique() @map("user_id") @db.Uuid
+  userId       Int     @unique() @map("user_id")
 
   @@map("user_meta")
 }
@@ -139,14 +139,14 @@ model SettingOption {
   setting   Setting @relation(fields: [settingId], references: [id])
   settingId Int     @map("setting_id")
 
-  @@unique([value, settingId])
+  @@unique([settingId, value])
   @@map("setting_option")
 }
 
 model UserSetting {
   selection Json
   user      User    @relation(fields: [userId], references: [id])
-  userId    String  @map("user_id") @db.Uuid
+  userId    Int     @map("user_id")
   setting   Setting @relation(fields: [settingId], references: [id])
   settingId Int     @map("setting_id")
 

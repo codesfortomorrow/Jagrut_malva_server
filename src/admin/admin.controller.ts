@@ -47,12 +47,11 @@ export class AdminController extends BaseController {
     @Body() data: UpdateProfileDetailsRequestDto,
   ) {
     const ctx = this.getContext(req);
-    await this.adminService.updateProfileDetails(
-      ctx.user.id,
-      data.firstname,
-      data.lastname,
-      data.email,
-    );
+    await this.adminService.updateProfileDetails(ctx.user.id, {
+      firstname: data.firstname,
+      lastname: data.lastname,
+      email: data.email,
+    });
     return { status: 'success' };
   }
 

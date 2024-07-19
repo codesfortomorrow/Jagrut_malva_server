@@ -70,17 +70,17 @@ export enum UserType {
 }
 
 export interface JwtPayload {
-  readonly sub: string;
+  readonly sub: number;
   readonly type: UserType;
 }
 
 export interface ValidatedUser {
-  readonly id: string;
+  readonly id: number;
   readonly type: UserType;
 }
 
 export interface AuthenticatedUser {
-  readonly id: string;
+  readonly id: number;
   readonly type: UserType;
 }
 

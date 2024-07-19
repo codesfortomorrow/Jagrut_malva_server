@@ -4,9 +4,10 @@ import { customAlphabet } from 'nanoid';
 import _ from 'lodash';
 import { isAxiosError } from 'axios';
 import { plainToInstance } from 'class-transformer';
-import { validateOrReject } from 'class-validator';
+import { isPhoneNumber, validateOrReject } from 'class-validator';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Prisma } from '@prisma/client';
 import { LoggerService } from './logger.service';
 import { Environment, EnvironmentVariables, UserType } from '../types';
 
@@ -177,7 +178,8 @@ export class UtilsService {
     while (currentValue !== targetValue) {
       if (timeout && Date.now() - startTime > timeout) {
         throw new Error(
-          `Timeout occurred while waiting for the "${currentValue}" to reach the target value ${targetValue}`,
+          `Timeout occurred after ${timeout} ms, while waiting for the "${currentValue}" to reach the target value ${targetValue}`,
+          { cause: 'TIMEOUT' },
         );
       }
       await this.sleep(interval);
@@ -191,6 +193,7 @@ export class UtilsService {
       type: 'exponential',
       delay: 1000,
     },
+    causes?: string[],
   ): Promise<T> {
     let attempt = 0;
 
@@ -206,7 +209,10 @@ export class UtilsService {
       try {
         return await fn();
       } catch (err) {
-        if (attempt === maxRetries) {
+        if (
+          attempt === maxRetries ||
+          (causes && (!err.cause || !causes.includes(err.cause)))
+        ) {
           throw err;
         }
         attempt++;
@@ -269,7 +275,7 @@ export class UtilsService {
   async batchable<T, R>(
     elements: T[],
     fn: (element: T, index: number) => Promise<R>,
-    batchSize = os.cpus().length * 4,
+    batchSize = Math.pow(os.cpus().length, 2),
   ): Promise<R[]> {
     const results: R[] = [];
     const processes: Promise<void>[] = [];
@@ -290,5 +296,29 @@ export class UtilsService {
     await Promise.all(processes);
 
     return results;
+  }
+
+  async timeout<T>(
+    fn: () => Promise<T>,
+    timeout = 20000,
+    options?: {
+      cleanUp?: () => void;
+    },
+  ): Promise<T> {
+    return await Promise.race<T>([
+      fn(),
+      new Promise((resolve, reject) => {
+        setTimeout(() => {
+          if (options?.cleanUp) {
+            options.cleanUp();
+          }
+          reject(
+            new Error(`Timeout after ${timeout} ms`, {
+              cause: 'TIMEOUT',
+            }),
+          );
+        }, timeout);
+      }),
+    ]);
   }
 }

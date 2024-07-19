@@ -69,14 +69,16 @@ export class StorageService {
   }
 
   async removeDir(...path: string[]): Promise<void> {
-    if (await this.exist(...path)) {
-      return await fsPromises.rmdir(join(this.diskDestination, ...path));
+    const dirPath = join(...path);
+    if (await this.exist(dirPath)) {
+      return await fsPromises.rmdir(join(this.diskDestination, dirPath));
     }
   }
 
   async removeFile(...path: string[]): Promise<void> {
-    if (await this.exist(...path)) {
-      return await fsPromises.unlink(join(this.diskDestination, ...path));
+    const filePath = join(...path);
+    if (await this.exist(filePath)) {
+      return await fsPromises.unlink(join(this.diskDestination, filePath));
     }
   }
 

@@ -40,14 +40,6 @@ async function bootstrap() {
     }),
   );
   app.use(compression({ level: 1 }));
-  const origins = appConfig.domain
-    ? [
-        new RegExp(
-          `^http[s]{0,1}://(?:${appConfig.domain}|[a-z0-9-]+.${appConfig.domain})$`,
-        ),
-      ]
-    : [];
-
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -58,6 +50,13 @@ async function bootstrap() {
     }),
   );
   app.useGlobalFilters(new AllExceptionsFilter(app.get(HttpAdapterHost)));
+  const origins = appConfig.domain
+    ? [
+        new RegExp(
+          `^http[s]{0,1}://(?:${appConfig.domain}|[a-z0-9-]+.${appConfig.domain})$`,
+        ),
+      ]
+    : [];
   app.enableCors({
     origin: utilsService.isProductionApp()
       ? origins
@@ -79,9 +78,7 @@ async function bootstrap() {
     path.join(process.cwd(), configService.get('STORAGE_DIR')),
     { prefix: `/${configService.get('STORAGE_DIR')}` },
   );
-  app.useStaticAssets(path.join(process.cwd(), 'static'), {
-    prefix: `/static`,
-  });
+  app.useStaticAssets(path.join(process.cwd(), 'static'));
 
   const config = new DocumentBuilder()
     .setTitle(appConfig.platformName || '')

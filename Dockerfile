@@ -29,4 +29,4 @@ FROM base AS nestjs-app
 
 RUN npm run build
 
-CMD ["pm2-runtime", "dist/main.js", "--name", "nestjs-app", "--wait-ready", "--listen-timeout 60000", "--kill-timeout", "60000"]
+CMD ["pm2-runtime", "start", "ecosystem.config.js"]

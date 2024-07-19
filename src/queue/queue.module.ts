@@ -17,7 +17,9 @@ export class QueueModule {
         }),
         defaultJobOptions: {
           removeOnComplete: true,
-          removeOnFail: true,
+          removeOnFail: {
+            age: 86400, // 24 hr
+          },
         },
       }),
       inject: [ConfigService],

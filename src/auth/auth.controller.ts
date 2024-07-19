@@ -164,7 +164,7 @@ export class AuthController extends BaseController {
 
     const { accessToken, type } = response as ValidAuthResponse;
     this.setAuthCookie(res, accessToken, type);
-    return { status: 'success' };
+    return { accessToken, type };
   }
 
   @ApiBody({ type: () => LoginRequestDto })

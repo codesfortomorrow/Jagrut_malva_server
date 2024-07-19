@@ -6,7 +6,11 @@ import { SentMessageInfo } from 'nodemailer/lib/smtp-transport';
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { InjectQueue } from '@nestjs/bullmq';
-import { mailConfigFactory, mailQueueConfigFactory } from '@Config';
+import {
+  appConfigFactory,
+  mailConfigFactory,
+  mailQueueConfigFactory,
+} from '@Config';
 import { MAIL_QUEUE } from './mail.constants';
 import { MailTemplate } from './mail.types';
 
@@ -25,12 +29,15 @@ export class MailService {
   constructor(
     @Inject(mailConfigFactory.KEY)
     private readonly config: ConfigType<typeof mailConfigFactory>,
+    @Inject(appConfigFactory.KEY)
+    private readonly appConfig: ConfigType<typeof appConfigFactory>,
     @Inject(mailQueueConfigFactory.KEY)
     private readonly queueConfig: ConfigType<typeof mailQueueConfigFactory>,
     @InjectQueue(MAIL_QUEUE)
     private readonly mailQueue: Queue<SendMessagePayload, SentMessageInfo>,
   ) {
     this.transporter = nodemailer.createTransport({
+      name: this.appConfig.domain,
       host: this.config.host,
       port: this.config.port,
       auth: {

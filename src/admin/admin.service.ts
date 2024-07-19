@@ -3,7 +3,7 @@ import { Cache } from 'cache-manager';
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { Admin, AdminMeta, AdminStatus } from '@prisma/client';
+import { Admin, AdminMeta, AdminStatus, Prisma } from '@prisma/client';
 import { adminConfigFactory } from '@Config';
 import {
   StorageService,
@@ -42,7 +42,7 @@ export class AdminService {
     return { salt, hash };
   }
 
-  async isEmailExist(email: string, excludeAdminId?: string): Promise<boolean> {
+  async isEmailExist(email: string, excludeAdminId?: number): Promise<boolean> {
     return (
       (await this.prisma.admin.count({
         where: {
@@ -55,7 +55,7 @@ export class AdminService {
     );
   }
 
-  async getById(adminId: string): Promise<Admin> {
+  async getById(adminId: number): Promise<Admin> {
     return await this.prisma.admin.findUniqueOrThrow({
       where: {
         id: adminId,
@@ -71,7 +71,7 @@ export class AdminService {
     });
   }
 
-  async getMetaById(adminId: string): Promise<AdminMeta> {
+  async getMetaById(adminId: number): Promise<AdminMeta> {
     return await this.prisma.adminMeta.findUniqueOrThrow({
       where: {
         adminId,
@@ -79,7 +79,7 @@ export class AdminService {
     });
   }
 
-  async authenticate(adminId: string, password: string): Promise<Admin> {
+  async authenticate(adminId: number, password: string): Promise<Admin> {
     const admin = await this.getById(adminId);
     const validation = await this.validateCredentials(admin.email, password);
 
@@ -120,7 +120,7 @@ export class AdminService {
     return false;
   }
 
-  async getProfile(adminId: string): Promise<Admin> {
+  async getProfile(adminId: number): Promise<Admin> {
     const admin = await this.getById(adminId);
     if (admin.profileImage) {
       admin.profileImage = this.getProfileImageUrl(admin.profileImage);
@@ -129,28 +129,37 @@ export class AdminService {
   }
 
   async updateProfileDetails(
-    adminId: string,
-    firstname?: string,
-    lastname?: string,
-    email?: string,
+    adminId: number,
+    data: {
+      firstname?: string;
+      lastname?: string;
+      email?: string;
+    },
+    options?: { tx?: Prisma.TransactionClient },
   ): Promise<Admin> {
-    if (email && (await this.isEmailExist(email, adminId)))
-      throw new Error('Email already exist');
+    const prismaClient = options?.tx ? options.tx : this.prisma;
 
-    return await this.prisma.admin.update({
+    const admin = await prismaClient.admin.findUniqueOrThrow({
+      where: { id: adminId },
+    });
+    if (data.email && (await this.isEmailExist(data.email, adminId))) {
+      throw new Error('Email already exist');
+    }
+
+    return await prismaClient.admin.update({
       data: {
-        firstname,
-        lastname,
-        email: email && email.toLowerCase(),
+        firstname: data.firstname,
+        lastname: data.lastname,
+        email: data.email && data.email.toLowerCase(),
       },
       where: {
-        id: adminId,
+        id: admin.id,
       },
     });
   }
 
   async updateProfileImage(
-    adminId: string,
+    adminId: number,
     profileImage: string,
   ): Promise<{ profileImage: string | null }> {
     const admin = await this.getById(adminId);
@@ -179,7 +188,7 @@ export class AdminService {
   }
 
   async changePassword(
-    adminId: string,
+    adminId: number,
     oldPassword: string,
     newPassword: string,
   ): Promise<Admin> {
@@ -213,7 +222,7 @@ export class AdminService {
     return admin;
   }
 
-  async setStatus(userId: string, status: AdminStatus): Promise<Admin> {
+  async setStatus(userId: number, status: AdminStatus): Promise<Admin> {
     await this.cacheManager.del(
       getAccessGuardCacheKey({ id: userId, type: UserType.Admin }),
     );
