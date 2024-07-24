@@ -4,10 +4,9 @@ import { customAlphabet } from 'nanoid';
 import _ from 'lodash';
 import { isAxiosError } from 'axios';
 import { plainToInstance } from 'class-transformer';
-import { isPhoneNumber, validateOrReject } from 'class-validator';
+import { validateOrReject } from 'class-validator';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Prisma } from '@prisma/client';
 import { LoggerService } from './logger.service';
 import { Environment, EnvironmentVariables, UserType } from '../types';
 
