@@ -1,4 +1,4 @@
-import { join } from 'path';
+import { join } from 'node:path';
 import { Cache } from 'cache-manager';
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
@@ -152,6 +152,11 @@ export class UsersService {
   ): Promise<ValidatedUser | false | null> {
     const user = await this.getByEmail(email);
     if (!user) return null;
+    if (user.status !== UserStatus.Active) {
+      throw new Error(
+        'Your account has been temporarily suspended/blocked by the system. Please contact customer support for assistance',
+      );
+    }
 
     const userMeta = await this.getMetaById(user.id);
     const passwordHash = this.utilsService.hashPassword(

@@ -1,5 +1,5 @@
-import os from 'os';
-import crypto from 'crypto';
+import os from 'node:os';
+import crypto from 'node:crypto';
 import { customAlphabet } from 'nanoid';
 import _ from 'lodash';
 import { isAxiosError } from 'axios';
@@ -110,13 +110,9 @@ export class UtilsService {
 
   msToHuman(
     ms: number,
-    options?: {
-      maxUnit?: 'day' | 'hour' | 'minute' | 'second';
-    },
+    options?: { maxUnit?: 'day' | 'hour' | 'minute' | 'second' },
   ): string {
-    options = {
-      maxUnit: options?.maxUnit || 'day',
-    };
+    options = { maxUnit: options?.maxUnit || 'day' };
 
     const dateProperties: Record<string, number> = {};
 
@@ -228,10 +224,7 @@ export class UtilsService {
       silent?: boolean;
     },
   ): Promise<T> {
-    const backoff = options?.backoff || {
-      type: 'fixed',
-      delay: 1000,
-    };
+    const backoff = options?.backoff || { type: 'fixed', delay: 1000 };
 
     let attempt = 0;
     do {
@@ -300,9 +293,7 @@ export class UtilsService {
   async timeout<T>(
     fn: () => Promise<T>,
     timeout = 20000,
-    options?: {
-      cleanUp?: () => void;
-    },
+    options?: { cleanUp?: () => void },
   ): Promise<T> {
     return await Promise.race<T>([
       fn(),
@@ -312,9 +303,7 @@ export class UtilsService {
             options.cleanUp();
           }
           reject(
-            new Error(`Timeout after ${timeout} ms`, {
-              cause: 'TIMEOUT',
-            }),
+            new Error(`Timeout after ${timeout} ms`, { cause: 'TIMEOUT' }),
           );
         }, timeout);
       }),

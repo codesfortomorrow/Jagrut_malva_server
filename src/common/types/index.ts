@@ -1,5 +1,10 @@
 import { Request } from 'express';
-import { IsEnum, IsInt, IsString } from 'class-validator';
+import { IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
+
+export enum NodeType {
+  Master = 'master',
+  Cluster = 'cluster',
+}
 
 export enum Environment {
   Development = 'development',
@@ -8,6 +13,9 @@ export enum Environment {
 }
 
 export class EnvironmentVariables {
+  @IsEnum(NodeType)
+  NODE_TYPE: NodeType;
+
   @IsEnum(Environment)
   NODE_ENV: Environment;
 
@@ -16,6 +24,11 @@ export class EnvironmentVariables {
 
   @IsInt()
   PORT: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  CLUSTER_WORKERS?: number;
 
   @IsString()
   DATABASE_URL: string;

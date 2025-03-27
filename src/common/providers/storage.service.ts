@@ -1,7 +1,7 @@
-import crypto from 'crypto';
-import { join, extname } from 'path';
-import { URL } from 'url';
-import fsPromises from 'fs/promises';
+import crypto from 'node:crypto';
+import { join, extname } from 'node:path';
+import { URL } from 'node:url';
+import fsPromises from 'node:fs/promises';
 import multer from 'multer';
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';

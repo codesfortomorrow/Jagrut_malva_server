@@ -185,7 +185,6 @@ export class AuthController extends BaseController {
 
   @UseGuards(GoogleOAuthGuard)
   @Get('google')
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
   googleOAuth() {}
 
   @ApiExcludeEndpoint()

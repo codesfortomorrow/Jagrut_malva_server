@@ -1,4 +1,4 @@
-import { URL } from 'url';
+import { URL } from 'node:url';
 import { Request } from 'express';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
@@ -23,7 +23,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, JWT_AUTH) {
         ExtractJwt.fromAuthHeaderAsBearerToken(),
       ]),
       ignoreExpiration: false,
-      secretOrKey: config.secret,
+      secretOrKey: config.secret as string,
     });
   }
 

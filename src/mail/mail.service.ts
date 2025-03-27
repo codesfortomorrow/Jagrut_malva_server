@@ -1,4 +1,4 @@
-import path from 'path';
+import path from 'node:path';
 import pug from 'pug';
 import nodemailer from 'nodemailer';
 import { Queue } from 'bullmq';
