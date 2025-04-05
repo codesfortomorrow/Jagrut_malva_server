@@ -180,7 +180,7 @@ export class AuthController extends BaseController {
       req.user.type,
     );
     this.setAuthCookie(res, accessToken, type);
-    return { status: 'success' };
+    return { accessToken, type };
   }
 
   @UseGuards(GoogleOAuthGuard)

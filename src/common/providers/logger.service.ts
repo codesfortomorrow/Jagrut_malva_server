@@ -1,22 +1,19 @@
 import 'dotenv/config';
 import 'winston-mongodb';
-import path from 'node:path';
 import { Logger, createLogger, transports, format } from 'winston';
 import { Environment } from '../types';
 
-const { Console, File, MongoDB } = transports;
+const { Console, MongoDB } = transports;
 const LogLevel = { error: 0, warn: 1, info: 2, debug: 3 } as const;
 type LogLevel = keyof typeof LogLevel;
 
 export class LoggerService {
   private readonly logger: Logger;
   private readonly isProduction: boolean;
-  private readonly logDir: string;
   private readonly dbUri: string;
 
   constructor(defaultMeta?: any) {
     this.isProduction = process.env.NODE_ENV === Environment.Production;
-    this.logDir = path.join(process.env.LOG_DIR || 'logs');
     this.dbUri = process.env.MONGO_URI || 'mongodb://localhost:27017';
 
     this.logger = createLogger({
@@ -30,27 +27,18 @@ export class LoggerService {
 
   private getTransports() {
     if (this.isProduction) {
-      // const options = {
-      //   dirname: this.logDir,
-      // };
-      // return [
-      //   new File({
-      //     ...options,
-      //     level: process.env.LOG_LEVEL,
-      //     filename: 'app.log',
-      //   }),
-      //   new File({
-      //     ...options,
-      //     level: 'error',
-      //     filename: 'error.log',
-      //   }),
-      // ];
-      return new MongoDB({
-        level: process.env.LOG_LEVEL,
-        db: this.dbUri,
-        collection: 'logs',
-        metaKey: 'metadata',
-      });
+      return [
+        new MongoDB({
+          level: process.env.LOG_LEVEL,
+          db: this.dbUri,
+          collection: 'logs',
+          metaKey: 'metadata',
+        }),
+        new Console({
+          level: process.env.LOG_LEVEL,
+          format: format.colorize({ all: true }),
+        }),
+      ];
     } else {
       return new Console({
         level: process.env.LOG_LEVEL,

@@ -165,7 +165,13 @@ export class StorageService {
   }
 
   getFileUrl(file: string, dir?: string): string {
-    const filePath = join(this.diskDestination, dir || '', file);
-    return new URL(filePath, this.appConfig.serverUrl).href;
+    if (this.config.url) {
+      const url = new URL(this.config.url);
+      const filePath = join(url.pathname, dir || '', file);
+      return new URL(filePath, url.origin).href;
+    } else {
+      const filePath = join(this.diskDestination, dir || '', file);
+      return new URL(filePath, this.appConfig.serverUrl).href;
+    }
   }
 }

@@ -58,7 +58,9 @@ export class JwtStrategy extends PassportStrategy(Strategy, JWT_AUTH) {
     return null;
   }
 
-  async validate(payload: JwtPayload): Promise<AuthenticatedUser> {
+  async validate(
+    payload: JwtPayload & { readonly iat: number; readonly exp: number },
+  ): Promise<AuthenticatedUser> {
     return {
       id: payload.sub,
       type: payload.type,

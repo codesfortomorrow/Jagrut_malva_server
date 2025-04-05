@@ -35,13 +35,13 @@ services:
       - ${MONGO_DATA_VOLUME}/db:/data/db
       - ${MONGO_DATA_VOLUME}/configdb:/data/configdb
   nestjs-app:
-    image: nestjs-app-${APP_ENV}
+    image: nestjs-app-${APP_ENV}-${NODE_TYPE}
     build:
       context: .
       target: nestjs-app
       args:
         - PORT:${PORT}
-    container_name: nestjs-app-${APP_ENV}
+    container_name: nestjs-app-${APP_ENV}-${NODE_TYPE}
     restart: unless-stopped
     ports:
       - ${PORT}:${PORT}
@@ -52,7 +52,6 @@ services:
     volumes:
       - .env:/nestjs-app/.env:ro
       - ${STORAGE_DATA_VOLUME}:/nestjs-app/${STORAGE_DIR}
-      - ${LOG_VOLUME}:/nestjs-app/${LOG_DIR}
 networks:
   default:
     name: nestjs-app

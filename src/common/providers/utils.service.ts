@@ -163,14 +163,16 @@ export class UtilsService {
   }
 
   async waitUntilValue<T = any>(
-    currentValue: T,
+    getCurrentValue: () => T,
     targetValue: T,
     interval = 1000,
     timeout?: number,
   ): Promise<void> {
     const startTime = Date.now();
 
-    while (currentValue !== targetValue) {
+    do {
+      const currentValue = getCurrentValue();
+      if (currentValue === targetValue) return;
       if (timeout && Date.now() - startTime > timeout) {
         throw new Error(
           `Timeout occurred after ${timeout} ms, while waiting for the "${currentValue}" to reach the target value ${targetValue}`,
@@ -178,7 +180,7 @@ export class UtilsService {
         );
       }
       await this.sleep(interval);
-    }
+    } while (true);
   }
 
   async rerunnable<T>(

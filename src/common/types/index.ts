@@ -38,9 +38,6 @@ export class EnvironmentVariables {
 
   @IsString()
   STORAGE_DIR: string;
-
-  @IsString()
-  LOG_DIR: string;
 }
 
 /**
