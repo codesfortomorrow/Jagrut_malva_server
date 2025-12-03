@@ -1,10 +1,10 @@
 import dayjs from 'dayjs';
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
-import { Otp, OtpTransport, Prisma } from '@prisma/client';
 import { otpConfigFactory } from '@Config';
 import { UtilsService } from '@Common';
 import { PrismaService } from '../prisma';
+import { Otp, OtpTransport, Prisma } from '../generated/prisma/client';
 import {
   MailService,
   RegisterVerificationCodeMailTemplate,

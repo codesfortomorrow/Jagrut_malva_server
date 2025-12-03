@@ -5,7 +5,7 @@
 
 import cluster from 'node:cluster';
 import path from 'node:path';
-import * as bodyParser from 'body-parser';
+import bodyParser from 'body-parser';
 import compression from 'compression';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService, ConfigType } from '@nestjs/config';

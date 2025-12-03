@@ -1,5 +1,6 @@
 import _ from 'lodash';
 import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../prisma';
 import {
   Prisma,
   Setting,
@@ -8,9 +9,7 @@ import {
   SettingType,
   SystemSetting,
   UserSetting,
-} from '@prisma/client';
-import { JsonArray } from '@prisma/client/runtime/library';
-import { PrismaService } from '../prisma';
+} from '../generated/prisma/client';
 
 @Injectable()
 export class SettingsService {
@@ -59,7 +58,7 @@ export class SettingsService {
   ): Prisma.JsonValue[] {
     const selections: Prisma.JsonValue[] = [];
     if (selection) {
-      (selection as JsonArray).forEach((selection) => {
+      (selection as Prisma.JsonArray).forEach((selection) => {
         const option = _.find(options, (option) => option.id === selection);
         if (option) {
           selections.push(option);

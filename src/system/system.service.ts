@@ -1,7 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, Setting, SettingOption, SystemSetting } from '@prisma/client';
 import { UserType, UtilsService } from '@Common';
 import { SettingsService } from '../settings';
+import {
+  Prisma,
+  Setting,
+  SettingOption,
+  SystemSetting,
+} from '../generated/prisma/client';
 
 @Injectable()
 export class SystemService {

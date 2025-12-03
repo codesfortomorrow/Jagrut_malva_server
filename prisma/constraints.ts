@@ -1,7 +1,8 @@
 // NOTE: No need to run this script,
 // If not using `db:schema:push` script on staging or production env
+import 'dotenv/config';
 import { Command } from 'commander';
-import { Prisma, PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '../src/generated/prisma/client';
 
 const prisma = new PrismaClient();
 const program = new Command();

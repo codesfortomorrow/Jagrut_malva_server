@@ -7,9 +7,9 @@ import {
 } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
-import { AdminStatus, UserStatus } from '@prisma/client';
 import { AuthenticatedUser, UserType } from '../types';
 import { PrismaService } from '../../prisma';
+import { AdminStatus, UserStatus } from '../../generated/prisma/client';
 
 export const getAccessGuardCacheKey = (user: { id: number; type: string }) =>
   `${user.type}-${user.id}-access`.toLowerCase();

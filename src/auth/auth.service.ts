@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { JwtService, JwtSignOptions } from '@nestjs/jwt';
-import { OtpTransport, User } from '@prisma/client';
 import { JwtPayload, UserType } from '@Common';
 import { SendCodeRequestType } from './dto';
 import { UsersService } from '../users';
@@ -10,6 +9,7 @@ import {
   SendCodeResponse,
   VerifyCodeResponse,
 } from '../otp';
+import { OtpTransport, User } from '../generated/prisma/client';
 
 export type ValidAuthResponse = {
   accessToken: string;

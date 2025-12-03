@@ -1,5 +1,5 @@
 # base image
-FROM node:22 AS base
+FROM node:24 AS base
 
 WORKDIR /nestjs-app
 

@@ -20,7 +20,6 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { ConfigType } from '@nestjs/config';
-import { OtpTransport } from '@prisma/client';
 import {
   AuthenticatedRequest,
   BaseController,
@@ -44,6 +43,7 @@ import {
   LoginRequestDto,
 } from './dto';
 import { SendCodeResponse } from '../otp';
+import { OtpTransport } from '../generated/prisma/client';
 
 @ApiTags('Auth')
 @Controller('auth')

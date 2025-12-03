@@ -1,7 +1,8 @@
+import 'dotenv/config';
 import { Command } from 'commander';
-import { PrismaClient } from '@prisma/client';
 import { isEmail } from 'class-validator';
 import { admin } from './seeds';
+import { PrismaClient } from '../src/generated/prisma/client';
 
 const program = new Command();
 program.option('--seed-only <name>', 'Specify a seed name').parse(process.argv);

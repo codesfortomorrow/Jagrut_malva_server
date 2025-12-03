@@ -4,13 +4,6 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import {
-  OtpTransport,
-  Prisma,
-  User,
-  UserMeta,
-  UserStatus,
-} from '@prisma/client';
-import {
   StorageService,
   UserType,
   UtilsService,
@@ -25,6 +18,13 @@ import {
   SendCodeResponse,
   VerifyCodeResponse,
 } from '../otp';
+import {
+  OtpTransport,
+  Prisma,
+  User,
+  UserMeta,
+  UserStatus,
+} from '../generated/prisma/client';
 
 @Injectable()
 export class UsersService {

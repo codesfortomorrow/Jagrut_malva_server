@@ -13,7 +13,6 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiParam, ApiTags } from '@nestjs/swagger';
-import { UserStatus } from '@prisma/client';
 import {
   AuthenticatedRequest,
   BaseController,
@@ -31,6 +30,7 @@ import {
   UpdateProfileImageRequestDto,
   UpdateUserProfileRequestDto,
 } from './dto';
+import { UserStatus } from '../generated/prisma/client';
 
 @ApiTags('User')
 @ApiBearerAuth()

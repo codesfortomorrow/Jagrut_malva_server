@@ -3,7 +3,6 @@ import { Cache } from 'cache-manager';
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { Admin, AdminMeta, AdminStatus, Prisma } from '@prisma/client';
 import { adminConfigFactory } from '@Config';
 import {
   StorageService,
@@ -13,6 +12,8 @@ import {
   getAccessGuardCacheKey,
 } from '@Common';
 import { PrismaService } from '../prisma';
+import { Admin, AdminMeta, Prisma } from '../generated/prisma/client';
+import { AdminStatus } from '../generated/prisma/enums';
 
 @Injectable()
 export class AdminService {

@@ -4,7 +4,7 @@ module.exports = {
       name: 'nestjs-app',
       script: 'dist/main.js',
       wait_ready: true,
-      kill_timeout: 300000,
+      kill_timeout: 600000, // 10 min
     },
   ],
 };
