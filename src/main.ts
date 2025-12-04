@@ -5,6 +5,7 @@
 
 import cluster from 'node:cluster';
 import path from 'node:path';
+import helmet from 'helmet';
 import bodyParser from 'body-parser';
 import compression from 'compression';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
@@ -12,7 +13,6 @@ import { ConfigService, ConfigType } from '@nestjs/config';
 import { ValidationPipe } from '@nestjs/common';
 import { HttpAdapterHost, NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import {
   AllExceptionsFilter,
@@ -74,8 +74,10 @@ async function bootstrap() {
   });
   app.use(cookieParser());
   app.use(
-    helmet.crossOriginResourcePolicy({
-      policy: utilsService.isProductionApp() ? 'same-site' : 'cross-origin',
+    helmet({
+      crossOriginResourcePolicy: {
+        policy: utilsService.isProductionApp() ? 'same-site' : 'cross-origin',
+      },
     }),
   );
   app.enableShutdownHooks();
