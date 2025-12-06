@@ -14,6 +14,7 @@ export class MetricsService {
   private registry:
     | client.Registry<client.PrometheusContentType>
     | client.AggregatorRegistry<client.PrometheusContentType>;
+  private defaultLabels: Record<string, string> = {};
 
   constructor(
     private readonly configService: ConfigService<EnvironmentVariables, true>,
@@ -41,7 +42,7 @@ export class MetricsService {
         }
 
         res.setHeader('Content-Type', this.registry.contentType);
-        res.send(await this.get());
+        res.send(await this.getAll());
       } catch (err) {
         this.logger.error('Error occurred while fetching metrics', {
           cause:
@@ -82,9 +83,10 @@ export class MetricsService {
 
       // Collect metrics from worker process
       if (cluster.isWorker) {
-        this.registry.setDefaultLabels({
-          worker_id: cluster.worker!.id,
-        });
+        this.defaultLabels = {
+          worker_id: cluster.worker!.id.toString(),
+        };
+        this.registry.setDefaultLabels(this.defaultLabels);
 
         client.AggregatorRegistry.setRegistries(this.registry);
         client.collectDefaultMetrics({
@@ -107,5 +109,12 @@ export class MetricsService {
         this.registry as client.AggregatorRegistry<client.PrometheusContentType>
       ).clusterMetrics();
     }
+  }
+
+  async getAll(): Promise<string> {
+    const metrics = await Promise.all([this.get()]);
+
+    // Join all the metrics
+    return metrics.join('\n');
   }
 }

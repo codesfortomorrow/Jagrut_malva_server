@@ -8,6 +8,7 @@ import {
   Max,
   Min,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export enum NodeType {
   Master = 'master',
@@ -51,6 +52,7 @@ export class EnvironmentVariables {
 
   @IsOptional()
   @IsBoolean()
+  @Transform((params) => (params.obj.ENABLE_METRICS === 'true' ? true : false))
   ENABLE_METRICS?: boolean;
 
   @IsOptional()
