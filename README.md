@@ -148,3 +148,34 @@ http://localhost:{PORT}/api-spec
 # production
 {API_URL}/api-spec
 ```
+
+## Monitoring
+
+To enable metrics server update `.env` file with below variables -
+
+```bash
+ENABLE_METRICS=true
+METRICS_PORT=8080
+METRICS_HOST=0.0.0.0
+```
+
+Copy `example.env` file & create `.env` file in `monitoring` directory. Then use below command to start/stop monitoring tools `Prometheus` & `Grafana`
+
+```bash
+# start
+$ npm run monitoring
+
+# stop
+$ npm run monitoring:stop
+```
+
+To access `Grafana` & `Prometheus` navigate to below urls -
+
+```bash
+# Grafana
+http://127.0.0.1:{GFAFANA_PORT}
+
+# Prometheus
+http://127.0.0.1:{PROMETHEUS_PORT}
+
+```

@@ -9,5 +9,6 @@ export const appConfigFactory = registerAs('app', () => ({
   serverUrl: process.env.SERVER_URL,
   appUri: process.env.APP_URI,
   httpPayloadMaxSize: '20mb',
-  platformName: process.env.PLATFORM_NAME,
+  name: process.env.APP_NAME,
+  shortName: process.env.APP_SHORT_NAME,
 }));

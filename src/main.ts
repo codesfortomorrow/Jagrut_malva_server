@@ -23,6 +23,7 @@ import {
 } from '@Common';
 import { appConfigFactory } from '@Config';
 import { AppModule } from './app.module';
+import { MetricsService } from './metrics';
 
 const logger = new LoggerService();
 
@@ -37,76 +38,82 @@ async function bootstrap() {
     appConfigFactory.KEY,
   );
 
-  app.use(bodyParser.json({ limit: appConfig.httpPayloadMaxSize }));
-  app.use(
-    bodyParser.urlencoded({
-      limit: appConfig.httpPayloadMaxSize,
-      extended: true,
-    }),
-  );
-  app.use(compression({ level: 1 }));
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      transform: true,
-      forbidUnknownValues: true,
-      stopAtFirstError: true,
-      transformOptions: { enableImplicitConversion: true },
-    }),
-  );
-  app.useGlobalFilters(new AllExceptionsFilter(app.get(HttpAdapterHost)));
-  const origins = appConfig.domain
-    ? [
-        new RegExp(
-          `^http[s]{0,1}://(?:${appConfig.domain}|[a-z0-9-]+.${appConfig.domain})$`,
-        ),
-      ]
-    : [];
-  app.enableCors({
-    origin: utilsService.isProductionApp()
-      ? origins
-      : [
-          'null',
-          new RegExp(`^http[s]{0,1}://(?:127.0.0.1|localhost)(:[0-9]+)*$`),
-          ...origins,
-        ],
-    credentials: true,
-  });
-  app.use(cookieParser());
-  app.use(
-    helmet({
-      crossOriginResourcePolicy: {
-        policy: utilsService.isProductionApp() ? 'same-site' : 'cross-origin',
+  if (utilsService.isMaster() || cluster.isWorker) {
+    app.use(bodyParser.json({ limit: appConfig.httpPayloadMaxSize }));
+    app.use(
+      bodyParser.urlencoded({
+        limit: appConfig.httpPayloadMaxSize,
+        extended: true,
+      }),
+    );
+    app.use(compression({ level: 1 }));
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        transform: true,
+        forbidUnknownValues: true,
+        stopAtFirstError: true,
+        transformOptions: { enableImplicitConversion: true },
+      }),
+    );
+    app.useGlobalFilters(new AllExceptionsFilter(app.get(HttpAdapterHost)));
+
+    const origins = appConfig.domain
+      ? [
+          new RegExp(
+            `^http[s]{0,1}://(?:${appConfig.domain}|[a-z0-9-]+.${appConfig.domain})$`,
+          ),
+        ]
+      : [];
+    app.enableCors({
+      origin: utilsService.isProductionApp()
+        ? origins
+        : [
+            'null',
+            new RegExp(`^http[s]{0,1}://(?:127.0.0.1|localhost)(:[0-9]+)*$`),
+            ...origins,
+          ],
+      credentials: true,
+    });
+    app.use(cookieParser());
+    app.use(
+      helmet({
+        crossOriginResourcePolicy: {
+          policy: utilsService.isProductionApp() ? 'same-site' : 'cross-origin',
+        },
+      }),
+    );
+    app.enableShutdownHooks();
+    app.useStaticAssets(
+      path.join(process.cwd(), configService.get('STORAGE_DIR')),
+      { prefix: `/${configService.get('STORAGE_DIR')}` },
+    );
+    app.useStaticAssets(path.join(process.cwd(), 'static'));
+
+    const config = new DocumentBuilder()
+      .setTitle(appConfig.name || '')
+      .addServer(appConfig.serverUrl || '')
+      .addBearerAuth()
+      .build();
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api-spec', app, document, {
+      customSiteTitle: `${appConfig.name || ''} OpenAPI Specification`.trim(),
+      swaggerOptions: {
+        persistAuthorization: true,
       },
-    }),
-  );
-  app.enableShutdownHooks();
-  app.useStaticAssets(
-    path.join(process.cwd(), configService.get('STORAGE_DIR')),
-    { prefix: `/${configService.get('STORAGE_DIR')}` },
-  );
-  app.useStaticAssets(path.join(process.cwd(), 'static'));
+    });
 
-  const config = new DocumentBuilder()
-    .setTitle(appConfig.platformName || '')
-    .addServer(appConfig.serverUrl || '')
-    .addBearerAuth()
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api-spec', app, document, {
-    customSiteTitle: `${
-      appConfig.platformName || ''
-    } OpenAPI Specification`.trim(),
-    swaggerOptions: {
-      persistAuthorization: true,
-    },
-  });
+    await app.listen(configService.get('PORT'));
 
-  await app.listen(configService.get('PORT'));
+    // Send messages to the parent process if server spawned with an IPC channel
+    if (process.send) {
+      process.send('ready');
+    }
+  }
 
-  // Send messages to the parent process if server spawned with an IPC channel
-  if (process.send) {
-    process.send('ready');
+  // Enable metrics server
+  if (utilsService.isMetricsEnabled()) {
+    app.get(MetricsService).init();
   }
 
   process.on('uncaughtException', (err) => {
@@ -141,6 +148,8 @@ if (process.env.NODE_TYPE === NodeType.Master) {
         logger.info(`Respawned worker process ${worker.process.pid}`);
       }
     });
+
+    bootstrap();
   } else {
     bootstrap();
   }

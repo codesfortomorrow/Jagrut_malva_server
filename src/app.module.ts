@@ -7,6 +7,7 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { CommonModule, StorageService } from '@Common';
 import { AppController } from './app.controller';
 import { AppCacheInterceptor } from './app-cache.interceptor';
+import { MetricsModule } from './metrics';
 import { PrismaModule } from './prisma';
 import { AuthModule } from './auth';
 import { RedisModule } from './redis';
@@ -23,6 +24,7 @@ import { RedisModule } from './redis';
     EventEmitterModule.forRoot(),
     ScheduleModule.forRoot(),
     CommonModule,
+    MetricsModule,
     PrismaModule,
     RedisModule,
     AuthModule,

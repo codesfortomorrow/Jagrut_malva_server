@@ -1,5 +1,13 @@
 import { Request } from 'express';
-import { IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import {
+  IsBoolean,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
 
 export enum NodeType {
   Master = 'master',
@@ -23,6 +31,8 @@ export class EnvironmentVariables {
   APP_ENV: Environment;
 
   @IsInt()
+  @Min(1)
+  @Max(65535)
   PORT: number;
 
   @IsOptional()
@@ -38,6 +48,16 @@ export class EnvironmentVariables {
 
   @IsString()
   STORAGE_DIR: string;
+
+  @IsOptional()
+  @IsBoolean()
+  ENABLE_METRICS?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(65535)
+  METRICS_PORT?: number;
 }
 
 /**

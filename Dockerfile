@@ -13,7 +13,7 @@ COPY prisma/schema.prisma prisma/schema.prisma
 
 ENV HUSKY=0
 
-RUN npm install
+RUN npm ci
 
 COPY . .
 

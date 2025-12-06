@@ -8,7 +8,12 @@ import { validateOrReject } from 'class-validator';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { LoggerService } from './logger.service';
-import { Environment, EnvironmentVariables, UserType } from '../types';
+import {
+  Environment,
+  EnvironmentVariables,
+  NodeType,
+  UserType,
+} from '../types';
 
 @Injectable()
 export class UtilsService {
@@ -27,6 +32,20 @@ export class UtilsService {
       return this.configService.get('APP_ENV') === Environment.Production;
     }
     return false;
+  }
+
+  isMaster(): boolean {
+    return this.configService.get('NODE_TYPE')
+      ? this.configService.get('NODE_TYPE') === NodeType.Master
+      : true;
+  }
+
+  isCluster(): boolean {
+    return this.configService.get('NODE_TYPE') === NodeType.Cluster;
+  }
+
+  isMetricsEnabled(): boolean {
+    return this.configService.get('ENABLE_METRICS');
   }
 
   getCookiePrefix(ut: UserType) {
