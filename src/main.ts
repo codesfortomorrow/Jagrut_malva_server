@@ -6,7 +6,6 @@
 import cluster from 'node:cluster';
 import path from 'node:path';
 import helmet from 'helmet';
-import bodyParser from 'body-parser';
 import compression from 'compression';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService, ConfigType } from '@nestjs/config';
@@ -15,7 +14,6 @@ import { HttpAdapterHost, NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
 import {
-  AllExceptionsFilter,
   EnvironmentVariables,
   LoggerService,
   NodeType,
@@ -23,6 +21,7 @@ import {
 } from '@Common';
 import { appConfigFactory } from '@Config';
 import { AppModule } from './app.module';
+import { AllExceptionsFilter } from './all-exceptions.filter';
 import { MetricsService } from './metrics';
 
 const logger = new LoggerService();
@@ -39,13 +38,11 @@ async function bootstrap() {
   );
 
   if (utilsService.isMaster() || cluster.isWorker) {
-    app.use(bodyParser.json({ limit: appConfig.httpPayloadMaxSize }));
-    app.use(
-      bodyParser.urlencoded({
-        limit: appConfig.httpPayloadMaxSize,
-        extended: true,
-      }),
-    );
+    app.useBodyParser('json', { limit: appConfig.httpPayloadMaxSize });
+    app.useBodyParser('urlencoded', {
+      limit: appConfig.httpPayloadMaxSize,
+      extended: true,
+    });
     app.use(compression({ level: 1 }));
     app.useGlobalPipes(
       new ValidationPipe({

@@ -1,40 +1,60 @@
 import cluster from 'node:cluster';
-import { Server } from 'http';
-import express from 'express';
+import { Server } from 'node:http';
+import { hrtime } from 'node:process';
+import express, { Request } from 'express';
 import client from 'prom-client';
 import { ConfigService } from '@nestjs/config';
 import { Injectable } from '@nestjs/common';
-import { EnvironmentVariables, LoggerService, UtilsService } from '@Common';
+import { BaseService, EnvironmentVariables, UtilsService } from '@Common';
+
+type MetricsRegistry =
+  | client.Registry<client.PrometheusContentType>
+  | client.AggregatorRegistry<client.PrometheusContentType>;
 
 @Injectable()
-export class MetricsService {
-  private readonly logger = new LoggerService({ service: MetricsService.name });
+export class MetricsService extends BaseService {
+  readonly isEnabled: boolean;
 
   private server: Server;
-  private registry:
-    | client.Registry<client.PrometheusContentType>
-    | client.AggregatorRegistry<client.PrometheusContentType>;
+  private registry: MetricsRegistry;
   private defaultLabels: Record<string, string> = {};
+
+  // HTTP metrics
+  private httpRequestsTotal: client.Counter;
+  private httpRequestDuration: client.Histogram;
+  private httpRequestsInFlight: client.Gauge;
 
   constructor(
     private readonly configService: ConfigService<EnvironmentVariables, true>,
     private readonly utilsService: UtilsService,
-  ) {}
+  ) {
+    super({ loggerDefaultMeta: { service: MetricsService.name } });
+
+    this.isEnabled = this.utilsService.isMetricsEnabled();
+  }
 
   private async shutdown(signal: string) {
     if (!this.server) return;
 
     this.logger.info(`Received signal ${signal}. Shutting down...`);
 
-    this.server.close(() => {
-      this.logger.info('Server closed');
+    await new Promise<void>((resolve, reject) => {
+      this.server.close((err?: Error) => {
+        if (err) {
+          reject(err);
+        } else {
+          this.logger.info('Server closed');
+          resolve();
+        }
+      });
     });
   }
 
   private bootstrap() {
     const app = express();
+    const path = '/metrics';
 
-    app.get('/metrics', async (req, res) => {
+    app.get(path, async (req, res) => {
       try {
         if (!this.registry) {
           res.status(500).send('Metrics service not initialized');
@@ -64,11 +84,13 @@ export class MetricsService {
     const port = this.configService.get('METRICS_PORT') || 8080;
 
     this.server = app.listen(port, host, () => {
-      this.logger.info(`Metrics server running on http://${host}:${port}`);
+      this.logger.info(`Metrics server running on http://${host}:${port}`, {
+        path,
+      });
     });
 
-    process.on('SIGINT', () => this.shutdown('SIGINT'));
-    process.on('SIGTERM', () => this.shutdown('SIGTERM'));
+    process.on('SIGINT', () => this.shutdown('SIGINT').catch((err) => err));
+    process.on('SIGTERM', () => this.shutdown('SIGTERM').catch((err) => err));
   }
 
   async init() {
@@ -95,13 +117,45 @@ export class MetricsService {
       }
     }
 
+    // Initialize app metrics
+    if (this.utilsService.isMaster() || cluster.isWorker) {
+      this.initHttpMetrics(this.registry);
+    }
+
     // Run metrics server
     if (cluster.isPrimary) {
       this.bootstrap();
     }
   }
 
-  async get(): Promise<string> {
+  private initHttpMetrics(registry: MetricsRegistry) {
+    this.httpRequestsTotal = new client.Counter({
+      name: 'http_requests_total',
+      help: 'Total number of HTTP requests.',
+      labelNames: ['method', 'route', 'status'],
+      registers: [registry],
+    });
+
+    this.httpRequestDuration = new client.Histogram({
+      name: 'http_request_duration_seconds',
+      help: 'HTTP request duration in seconds.',
+      labelNames: ['method', 'route', 'status'],
+      buckets: [
+        0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 15, 20, 30, 45,
+        60,
+      ],
+      registers: [registry],
+    });
+
+    this.httpRequestsInFlight = new client.Gauge({
+      name: 'http_requests_in_flight',
+      help: 'Number of HTTP requests currently being processed.',
+      labelNames: ['method', 'route'],
+      registers: [registry],
+    });
+  }
+
+  private async get(): Promise<string> {
     if (this.utilsService.isMaster()) {
       return await this.registry.metrics();
     } else {
@@ -111,10 +165,65 @@ export class MetricsService {
     }
   }
 
-  async getAll(): Promise<string> {
+  private async getAll(): Promise<string> {
     const metrics = await Promise.all([this.get()]);
 
     // Join all the metrics
     return metrics.join('\n');
   }
+
+  private callMetric<T extends client.Metric>(metric: T, fn: (m: T) => void) {
+    if (!this.isEnabled) return;
+
+    try {
+      fn(metric);
+    } catch (err) {
+      this.logger.error('Metric operation failed', {
+        cause:
+          err instanceof Error
+            ? {
+                message: err.message,
+                name: err.name,
+                stack: err.stack,
+                cause: err.cause,
+              }
+            : err,
+      });
+    }
+  }
+
+  getRequestRoute(req: Request): string {
+    return req.route?.path || req.path;
+  }
+
+  getDuration(startTime: bigint): number {
+    return Number(hrtime.bigint() - startTime) / 1e9;
+  }
+
+  readonly http = {
+    incTotal: (labels: {
+      method: string;
+      route: string;
+      status: string | number;
+    }) => {
+      this.callMetric(this.httpRequestsTotal, (m) => m.inc(labels));
+    },
+
+    observeDuration: (
+      labels: { method: string; route: string; status: string | number },
+      value: number,
+    ) => {
+      this.callMetric(this.httpRequestDuration, (m) =>
+        m.observe(labels, value),
+      );
+    },
+
+    incInFlight: (labels: { method: string; route: string }) => {
+      this.callMetric(this.httpRequestsInFlight, (m) => m.inc(labels));
+    },
+
+    decInFlight: (labels: { method: string; route: string }) => {
+      this.callMetric(this.httpRequestsInFlight, (m) => m.dec(labels));
+    },
+  };
 }
