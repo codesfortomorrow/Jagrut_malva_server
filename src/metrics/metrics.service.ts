@@ -28,11 +28,16 @@ export class MetricsService extends BaseService {
   private httpRequestsTotal: client.Counter;
   private httpRequestDuration: client.Histogram;
   private httpRequestsInFlight: client.Gauge;
+
+  // Storage metrics
   private storageUsedBytes: client.Gauge;
   private storageFilesTotal: client.Gauge;
   private storageDirsTotal: client.Gauge;
   private storageEphemeralFilesTotal: client.Gauge;
   private storageEphemeralUsedBytes: client.Gauge;
+
+  // TODO: Add metrics for http req & res size
+  // TODO: Add metrics for http cache hit count
 
   constructor(
     private readonly configService: ConfigService<EnvironmentVariables, true>,
