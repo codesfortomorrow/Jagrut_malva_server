@@ -101,8 +101,9 @@ export class AuthController extends BaseController {
     res: Response,
     accessToken: string,
     userType: UserType,
+    expiresIn: number,
   ): void {
-    const expirationTime = this.config.authCookieExpirationTime();
+    const expirationTime = new Date(Date.now() + expiresIn * 1000);
 
     this.setCookie(res, this.getAuthCookie(userType), accessToken, {
       expires: expirationTime,
@@ -162,9 +163,9 @@ export class AuthController extends BaseController {
       });
     }
 
-    const { accessToken, type } = response as ValidAuthResponse;
-    this.setAuthCookie(res, accessToken, type);
-    return { accessToken, type };
+    const { accessToken, expiresIn, type } = response as ValidAuthResponse;
+    this.setAuthCookie(res, accessToken, type, expiresIn);
+    return { accessToken, expiresIn, type };
   }
 
   @ApiBody({ type: () => LoginRequestDto })
@@ -175,12 +176,12 @@ export class AuthController extends BaseController {
     @Req() req: Request & { user: ValidatedUser },
     @Res({ passthrough: true }) res: Response,
   ) {
-    const { accessToken, type } = await this.authService.login(
+    const { accessToken, expiresIn, type } = await this.authService.login(
       req.user.id,
       req.user.type,
     );
-    this.setAuthCookie(res, accessToken, type);
-    return { accessToken, type };
+    this.setAuthCookie(res, accessToken, type, expiresIn);
+    return { accessToken, expiresIn, type };
   }
 
   @UseGuards(GoogleOAuthGuard)
@@ -195,11 +196,11 @@ export class AuthController extends BaseController {
     @Req() req: Request & { user: ValidatedUser },
     @Res({ passthrough: true }) res: Response,
   ) {
-    const { accessToken, type } = await this.authService.login(
+    const { accessToken, expiresIn, type } = await this.authService.login(
       req.user.id,
       req.user.type,
     );
-    this.setAuthCookie(res, accessToken, type);
+    this.setAuthCookie(res, accessToken, type, expiresIn);
     return {
       url: this.appConfig.appWebUrl as string,
     };

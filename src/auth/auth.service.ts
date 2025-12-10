@@ -13,6 +13,7 @@ import { OtpTransport, User } from '../generated/prisma/client';
 
 export type ValidAuthResponse = {
   accessToken: string;
+  expiresIn: number;
   type: UserType;
 };
 
@@ -29,8 +30,14 @@ export class AuthService {
     private readonly otpService: OtpService,
   ) {}
 
-  private generateJwt(payload: JwtPayload, options?: JwtSignOptions): string {
-    return this.jwtService.sign(payload, options);
+  private async generateJwt(
+    payload: JwtPayload,
+    options?: JwtSignOptions,
+  ): Promise<{ token: string; expiresIn: number }> {
+    const token = await this.jwtService.signAsync(payload, options);
+    const { iat, exp } = this.jwtService.decode(token);
+
+    return { token, expiresIn: exp - iat };
   }
 
   async sendCode(
@@ -70,11 +77,13 @@ export class AuthService {
   }
 
   async login(userId: number, type: UserType): Promise<ValidAuthResponse> {
+    const { token, expiresIn } = await this.generateJwt({
+      sub: userId,
+      type,
+    });
     return {
-      accessToken: this.generateJwt({
-        sub: userId,
-        type,
-      }),
+      accessToken: token,
+      expiresIn,
       type,
     };
   }
@@ -124,11 +133,13 @@ export class AuthService {
       mobile: data.mobile,
       country: data.country,
     });
+    const { token, expiresIn } = await this.generateJwt({
+      sub: user.id,
+      type: UserType.User,
+    });
     return {
-      accessToken: this.generateJwt({
-        sub: user.id,
-        type: UserType.User,
-      }),
+      accessToken: token,
+      expiresIn,
       type: UserType.User,
     };
   }
