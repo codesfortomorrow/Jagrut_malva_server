@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { exec } from 'node:child_process';
 import { join, extname } from 'node:path';
 import { URL } from 'node:url';
 import fsPromises from 'node:fs/promises';
@@ -53,6 +54,68 @@ export class StorageService {
       },
     };
     this.checkPermissions();
+  }
+
+  async collectMetrics() {
+    const [size, files, dirs, ephemeralSize, ephemeralFiles] =
+      await Promise.all([
+        new Promise<number>((resolve, reject) => {
+          exec(`du -sb "${this.diskDestination}"`, (err, stdout) => {
+            if (err) return reject(err);
+            resolve(parseInt(stdout.split('\t')[0]));
+          });
+        }),
+
+        new Promise<number>((resolve, reject) => {
+          exec(
+            `find "${this.diskDestination}" -type f | wc -l`,
+            (err, stdout) => {
+              if (err) return reject(err);
+              resolve(parseInt(stdout.trim()));
+            },
+          );
+        }),
+
+        new Promise<number>((resolve, reject) => {
+          exec(
+            `find "${this.diskDestination}" -type d | wc -l`,
+            (err, stdout) => {
+              if (err) return reject(err);
+              resolve(parseInt(stdout.trim()) - 1);
+            },
+          );
+        }),
+
+        new Promise<number>((resolve, reject) => {
+          const cmd = `
+          find "${this.diskDestination}" -maxdepth 1 -type f -exec stat -c %s {} \\; | 
+          awk '{sum += $1} END {print sum}'
+        `;
+
+          exec(cmd, (err, stdout) => {
+            if (err) return reject(err);
+            resolve(parseInt(stdout.trim()));
+          });
+        }),
+
+        new Promise<number>((resolve, reject) => {
+          exec(
+            `find "${this.diskDestination}" -maxdepth 1 -type f | wc -l`,
+            (err, stdout) => {
+              if (err) return reject(err);
+              resolve(parseInt(stdout.trim()));
+            },
+          );
+        }),
+      ]);
+
+    return {
+      size,
+      files,
+      dirs,
+      ephemeralSize,
+      ephemeralFiles,
+    };
   }
 
   private async checkPermissions(): Promise<void> {

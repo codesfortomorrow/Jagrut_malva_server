@@ -5,7 +5,12 @@ import express, { Request } from 'express';
 import client from 'prom-client';
 import { ConfigService } from '@nestjs/config';
 import { Injectable } from '@nestjs/common';
-import { BaseService, EnvironmentVariables, UtilsService } from '@Common';
+import {
+  BaseService,
+  EnvironmentVariables,
+  StorageService,
+  UtilsService,
+} from '@Common';
 
 type MetricsRegistry =
   | client.Registry<client.PrometheusContentType>
@@ -23,10 +28,16 @@ export class MetricsService extends BaseService {
   private httpRequestsTotal: client.Counter;
   private httpRequestDuration: client.Histogram;
   private httpRequestsInFlight: client.Gauge;
+  private storageUsedBytes: client.Gauge;
+  private storageFilesTotal: client.Gauge;
+  private storageDirsTotal: client.Gauge;
+  private storageEphemeralFilesTotal: client.Gauge;
+  private storageEphemeralUsedBytes: client.Gauge;
 
   constructor(
     private readonly configService: ConfigService<EnvironmentVariables, true>,
     private readonly utilsService: UtilsService,
+    private readonly storageService: StorageService,
   ) {
     super({ loggerDefaultMeta: { service: MetricsService.name } });
 
@@ -64,7 +75,7 @@ export class MetricsService extends BaseService {
         res.setHeader('Content-Type', this.registry.contentType);
         res.send(await this.getAll());
       } catch (err) {
-        this.logger.error('Error occurred while fetching metrics', {
+        this.logger.error('Error occurred while collecting metrics', {
           cause:
             err instanceof Error
               ? {
@@ -119,7 +130,12 @@ export class MetricsService extends BaseService {
 
     // Initialize app metrics
     if (this.utilsService.isMaster() || cluster.isWorker) {
-      this.initHttpMetrics(this.registry);
+      this.initHttp(this.registry);
+
+      // Only primary
+      if (cluster.isPrimary) {
+        this.initStorage(this.registry);
+      }
     }
 
     // Run metrics server
@@ -128,7 +144,7 @@ export class MetricsService extends BaseService {
     }
   }
 
-  private initHttpMetrics(registry: MetricsRegistry) {
+  private initHttp(registry: MetricsRegistry) {
     this.httpRequestsTotal = new client.Counter({
       name: 'http_requests_total',
       help: 'Total number of HTTP requests.',
@@ -153,6 +169,68 @@ export class MetricsService extends BaseService {
       labelNames: ['method', 'route'],
       registers: [registry],
     });
+  }
+
+  private initStorage(registry: MetricsRegistry) {
+    this.storageUsedBytes = new client.Gauge({
+      name: 'storage_used_bytes',
+      help: 'Total size of the storage directory in bytes.',
+      registers: [registry],
+    });
+
+    this.storageFilesTotal = new client.Gauge({
+      name: 'storage_files_total',
+      help: 'Total number of files in the storage directory.',
+      registers: [registry],
+    });
+
+    this.storageDirsTotal = new client.Gauge({
+      name: 'storage_dirs_total',
+      help: 'Total number of directories in the storage directory.',
+      registers: [registry],
+    });
+
+    this.storageEphemeralFilesTotal = new client.Gauge({
+      name: 'storage_ephemeral_files_total',
+      help: 'Total number of ephemeral files not associated with any folder.',
+      registers: [registry],
+    });
+
+    this.storageEphemeralUsedBytes = new client.Gauge({
+      name: 'storage_ephemeral_used_bytes',
+      help: 'Total size of ephemeral files in bytes.',
+      registers: [registry],
+    });
+
+    // Pool storage metrics
+    const collect = async () => {
+      try {
+        const { size, files, dirs, ephemeralSize, ephemeralFiles } =
+          await this.storageService.collectMetrics();
+
+        this.storageUsedBytes.set(size);
+        this.storageFilesTotal.set(files);
+        this.storageDirsTotal.set(dirs);
+        this.storageEphemeralUsedBytes.set(ephemeralSize);
+        this.storageEphemeralFilesTotal.set(ephemeralFiles);
+      } catch (err) {
+        this.logger.error('Error occurred while collecting storage metrics', {
+          cause:
+            err instanceof Error
+              ? {
+                  message: err.message,
+                  name: err.name,
+                  stack: err.stack,
+                  cause: err.cause,
+                }
+              : err,
+        });
+      } finally {
+        setTimeout(() => collect(), 5000);
+      }
+    };
+
+    collect();
   }
 
   private async get(): Promise<string> {

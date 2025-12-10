@@ -13,7 +13,7 @@ export class MetricsMiddleware implements NestMiddleware {
     };
 
     res.on('finish', () => {
-      this.capture(
+      this.collect(
         req.method,
         this.metrics.getRequestRoute(req),
         res.statusCode,
@@ -23,7 +23,7 @@ export class MetricsMiddleware implements NestMiddleware {
 
     res.on('close', () => {
       if (!res.writableFinished) {
-        this.capture(
+        this.collect(
           req.method,
           this.metrics.getRequestRoute(req),
           'ABORTED',
@@ -35,7 +35,7 @@ export class MetricsMiddleware implements NestMiddleware {
     next();
   }
 
-  private capture(
+  private collect(
     method: string,
     route: string,
     status: string | number,
