@@ -1,10 +1,12 @@
 import { Module } from '@nestjs/common';
+import { ConfigType } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { MulterModule } from '@nestjs/platform-express';
 import { ScheduleModule } from '@nestjs/schedule';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { CacheModule } from '@nestjs/cache-manager';
 import { CommonModule, StorageService, UtilsService } from '@Common';
+import { appConfigFactory } from '@Config';
 import { AppController } from './app.controller';
 import { AppCacheInterceptor } from './app-cache.interceptor';
 import { MetricsInterceptor, MetricsModule, MetricsService } from './metrics';
@@ -20,7 +22,13 @@ import { RedisModule } from './redis';
       }),
       inject: [StorageService],
     }),
-    CacheModule.register({ isGlobal: true, ttl: 10000 }),
+    CacheModule.registerAsync({
+      isGlobal: true,
+      useFactory: (appConfig: ConfigType<typeof appConfigFactory>) => ({
+        ttl: appConfig.cacheTtl,
+      }),
+      inject: [appConfigFactory.KEY],
+    }),
     EventEmitterModule.forRoot(),
     ScheduleModule.forRoot(),
     CommonModule,

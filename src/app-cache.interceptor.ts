@@ -8,6 +8,10 @@ export class AppCacheInterceptor extends CacheInterceptor {
     if (hostType === 'http') {
       const request = context.switchToHttp().getRequest();
       const { method, url, user } = request;
+      const excludePaths: string[] = []; // Define your exclusion paths
+      if (excludePaths.some((path) => url.startsWith(path))) {
+        return undefined; // Do not cache
+      }
       if (method === 'GET' && /\/me(?:\/|$)/.test(url) && user) {
         return url.concat(`(me=${user.id})`);
       }

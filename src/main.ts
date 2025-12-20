@@ -87,12 +87,12 @@ async function bootstrap() {
     );
     app.useStaticAssets(path.join(process.cwd(), 'static'));
 
-    const config = new DocumentBuilder()
+    const docConfig = new DocumentBuilder()
       .setTitle(appConfig.name || '')
       .addServer(appConfig.serverUrl || '')
       .addBearerAuth()
       .build();
-    const document = SwaggerModule.createDocument(app, config);
+    const document = SwaggerModule.createDocument(app, docConfig);
     SwaggerModule.setup('api-spec', app, document, {
       customSiteTitle: `${appConfig.name || ''} OpenAPI Specification`.trim(),
       swaggerOptions: {

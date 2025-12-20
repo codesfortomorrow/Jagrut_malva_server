@@ -15,6 +15,14 @@ import {
   UserType,
 } from '../types';
 
+type Serialized<T> = T extends bigint
+  ? string
+  : T extends Array<infer U>
+    ? Serialized<U>[]
+    : T extends object
+      ? { [K in keyof T]: Serialized<T[K]> }
+      : T;
+
 @Injectable()
 export class UtilsService {
   private readonly logger = new LoggerService();
@@ -217,7 +225,7 @@ export class UtilsService {
       if (attempt > 0) {
         let delay = backoff.delay;
         if (backoff.type === 'exponential') {
-          delay = backoff.delay * Math.pow(2, attempt - 2);
+          delay = backoff.delay * Math.pow(2, attempt - 1);
         }
         await this.sleep(delay);
       }
@@ -329,5 +337,25 @@ export class UtilsService {
         }, timeout);
       }),
     ]);
+  }
+
+  serializeBigInts<T>(input: T): Serialized<T> {
+    const convert = (value: any): any => {
+      if (typeof value === 'bigint') return value.toString();
+      if (Array.isArray(value)) return value.map(convert);
+      if (
+        value &&
+        typeof value === 'object' &&
+        Object.getPrototypeOf(value) === Object.prototype
+      ) {
+        return Object.fromEntries(
+          Object.entries(value).map(([k, v]) => [k, convert(v)]),
+        );
+      }
+
+      return value;
+    };
+
+    return convert(input);
   }
 }

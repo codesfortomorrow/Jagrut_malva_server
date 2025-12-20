@@ -51,7 +51,7 @@ export class LoggerService {
     return format.combine(
       format.timestamp(),
       format.splat(),
-      format.errors({ stack: true }),
+      format.errors({ stack: true, cause: true }),
       format.json(),
     );
   }
