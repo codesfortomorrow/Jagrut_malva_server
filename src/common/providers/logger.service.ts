@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import 'winston-mongodb';
-import { Logger, createLogger, transports, format } from 'winston';
+import { Logger, createLogger, transports, format, transport } from 'winston';
 import { Environment } from '../types';
 
 const { Console, MongoDB } = transports;
@@ -8,13 +8,14 @@ const LogLevel = { error: 0, warn: 1, info: 2, debug: 3 } as const;
 type LogLevel = keyof typeof LogLevel;
 
 export class LoggerService {
+  private static transports: transport[];
   private readonly logger: Logger;
   private readonly isProduction: boolean;
-  private readonly dbUri: string;
+  private readonly dbUri?: string;
 
   constructor(defaultMeta?: any) {
     this.isProduction = process.env.NODE_ENV === Environment.Production;
-    this.dbUri = process.env.MONGO_URI || 'mongodb://localhost:27017';
+    this.dbUri = process.env.MONGO_URI;
 
     this.logger = createLogger({
       levels: LogLevel,
@@ -26,25 +27,32 @@ export class LoggerService {
   }
 
   private getTransports() {
-    if (this.isProduction) {
-      return [
+    if (LoggerService.transports) {
+      return LoggerService.transports;
+    }
+
+    const transports: transport[] = [
+      new Console({
+        level: process.env.LOG_LEVEL,
+        format: format.colorize({ all: true }),
+      }),
+    ];
+
+    if (this.isProduction && this.dbUri) {
+      transports.push(
         new MongoDB({
           level: process.env.LOG_LEVEL,
           db: this.dbUri,
           collection: 'logs',
           metaKey: 'metadata',
         }),
-        new Console({
-          level: process.env.LOG_LEVEL,
-          format: format.colorize({ all: true }),
-        }),
-      ];
-    } else {
-      return new Console({
-        level: process.env.LOG_LEVEL,
-        format: format.colorize({ all: true }),
-      });
+      );
     }
+
+    // Shared transports
+    LoggerService.transports = transports;
+
+    return transports;
   }
 
   private getFormat() {
