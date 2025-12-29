@@ -51,8 +51,8 @@
     "postdb:migrate:reset": "npm run db:init",
     "db:migrate:deploy": "prisma migrate deploy"
   },
-  "prisma": {
-    "seed": "ts-node prisma/seed.ts"
+  "engines": {
+    "node": "^24"
   },
   "dependencies": {
     "@nestjs/axios": "^4.0.1",
