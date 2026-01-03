@@ -9,6 +9,7 @@ RUN npm install pm2 --location=global
 
 COPY package.json .
 COPY package-lock.json .
+COPY prisma/schema.prisma prisma/schema.prisma
 
 ENV HUSKY=0
 
