@@ -128,8 +128,11 @@ if (process.env.NODE_TYPE === NodeType.Master) {
   // Will run application in cluster mode & without master processes
   if (cluster.isPrimary) {
     const totalWorkers = Number(process.env.CLUSTER_WORKERS || 2);
+    const workerIndexMap = new Map<number, number>();
     for (let i = 0; i < totalWorkers; i++) {
-      const worker = cluster.fork();
+      const worker = cluster.fork({ WORKER_INDEX: i });
+      workerIndexMap.set(worker.id, i);
+
       logger.info(`Spawned worker process ${worker.process.pid}`);
     }
 
@@ -141,8 +144,15 @@ if (process.env.NODE_TYPE === NodeType.Master) {
           code,
           signal,
         });
-        cluster.fork();
-        logger.info(`Respawned worker process ${worker.process.pid}`);
+
+        const index = workerIndexMap.get(worker.id)!;
+        const newWorker = cluster.fork({
+          WORKER_INDEX: index,
+        });
+        workerIndexMap.delete(worker.id);
+        workerIndexMap.set(newWorker.id, index);
+
+        logger.info(`Respawned worker process ${newWorker.process.pid}`);
       }
     });
 

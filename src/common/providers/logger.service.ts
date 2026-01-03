@@ -8,7 +8,6 @@ const LogLevel = { error: 0, warn: 1, info: 2, debug: 3 } as const;
 type LogLevel = keyof typeof LogLevel;
 
 export class LoggerService {
-  private static transports: transport[];
   private readonly logger: Logger;
   private readonly isProduction: boolean;
   private readonly dbUri?: string;
@@ -27,10 +26,6 @@ export class LoggerService {
   }
 
   private getTransports() {
-    if (LoggerService.transports) {
-      return LoggerService.transports;
-    }
-
     const transports: transport[] = [
       new Console({
         level: process.env.LOG_LEVEL,
@@ -48,9 +43,6 @@ export class LoggerService {
         }),
       );
     }
-
-    // Shared transports
-    LoggerService.transports = transports;
 
     return transports;
   }

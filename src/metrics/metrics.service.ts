@@ -122,7 +122,9 @@ export class MetricsService extends BaseService {
       // Collect metrics from worker process
       if (cluster.isWorker) {
         this.defaultLabels = {
-          worker_id: cluster.worker!.id.toString(),
+          worker:
+            process.env.WORKER_INDEX?.toString() ||
+            cluster.worker!.id.toString(),
         };
         this.registry.setDefaultLabels(this.defaultLabels);
 

@@ -53,11 +53,13 @@ services:
       target: nestjs-app-dev
       args:
         - PORT:${PORT}
+        - METRICS_PORT:${METRICS_PORT}
     container_name: nestjs-app-dev
     restart: unless-stopped
     stop_grace_period: 600s
     ports:
       - ${PORT}:${PORT}
+      - ${METRICS_PORT}:${METRICS_PORT}
     depends_on:
       - postgres
       - redis
