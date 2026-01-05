@@ -4,7 +4,7 @@ import { hrtime } from 'node:process';
 import express, { Request } from 'express';
 import client from 'prom-client';
 import { ConfigService } from '@nestjs/config';
-import { Injectable } from '@nestjs/common';
+import { BeforeApplicationShutdown, Injectable } from '@nestjs/common';
 import {
   BaseService,
   EnvironmentVariables,
@@ -17,7 +17,10 @@ type MetricsRegistry =
   | client.AggregatorRegistry<client.PrometheusContentType>;
 
 @Injectable()
-export class MetricsService extends BaseService {
+export class MetricsService
+  extends BaseService
+  implements BeforeApplicationShutdown
+{
   readonly isEnabled: boolean;
 
   private server: Server;
@@ -47,6 +50,12 @@ export class MetricsService extends BaseService {
     super({ loggerDefaultMeta: { service: MetricsService.name } });
 
     this.isEnabled = this.utilsService.isMetricsEnabled();
+  }
+
+  async beforeApplicationShutdown(signal?: string) {
+    await this.shutdown(signal || 'unknown').catch((err) => {
+      this.logger.error('Error during shutdown', { cause: err });
+    });
   }
 
   private async shutdown(signal: string) {
@@ -104,9 +113,6 @@ export class MetricsService extends BaseService {
         path,
       });
     });
-
-    process.on('SIGINT', () => this.shutdown('SIGINT').catch((err) => err));
-    process.on('SIGTERM', () => this.shutdown('SIGTERM').catch((err) => err));
   }
 
   async init() {
