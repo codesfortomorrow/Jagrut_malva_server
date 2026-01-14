@@ -87,18 +87,20 @@ async function bootstrap() {
     );
     app.useStaticAssets(path.join(process.cwd(), 'static'));
 
-    const docConfig = new DocumentBuilder()
-      .setTitle(appConfig.name || '')
-      .addServer(appConfig.serverUrl || '')
-      .addBearerAuth()
-      .build();
-    const document = SwaggerModule.createDocument(app, docConfig);
-    SwaggerModule.setup('api-spec', app, document, {
-      customSiteTitle: `${appConfig.name || ''} OpenAPI Specification`.trim(),
-      swaggerOptions: {
-        persistAuthorization: true,
-      },
-    });
+    if (!utilsService.isProductionApp()) {
+      const docConfig = new DocumentBuilder()
+        .setTitle(appConfig.name || '')
+        .addServer(appConfig.serverUrl || '')
+        .addBearerAuth()
+        .build();
+      const document = SwaggerModule.createDocument(app, docConfig);
+      SwaggerModule.setup('api-spec', app, document, {
+        customSiteTitle: `${appConfig.name || ''} OpenAPI Specification`.trim(),
+        swaggerOptions: {
+          persistAuthorization: true,
+        },
+      });
+    }
 
     await app.listen(configService.get('PORT'));
 

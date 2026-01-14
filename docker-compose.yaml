@@ -55,6 +55,10 @@ services:
     volumes:
       - .env:/nestjs-app/.env:ro
       - ${STORAGE_DATA_VOLUME}:/nestjs-app/${STORAGE_DIR}
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
 networks:
   default:
     name: nestjs-app
