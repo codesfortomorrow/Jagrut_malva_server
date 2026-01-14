@@ -4,7 +4,7 @@ import { hrtime } from 'node:process';
 import express, { Request } from 'express';
 import client from 'prom-client';
 import { ConfigService } from '@nestjs/config';
-import { BeforeApplicationShutdown, Injectable } from '@nestjs/common';
+import { Injectable, OnApplicationShutdown } from '@nestjs/common';
 import {
   BaseService,
   EnvironmentVariables,
@@ -19,7 +19,7 @@ type MetricsRegistry =
 @Injectable()
 export class MetricsService
   extends BaseService
-  implements BeforeApplicationShutdown
+  implements OnApplicationShutdown
 {
   readonly isEnabled: boolean;
 
@@ -52,16 +52,20 @@ export class MetricsService
     this.isEnabled = this.utilsService.isMetricsEnabled();
   }
 
-  async beforeApplicationShutdown(signal?: string) {
-    await this.shutdown(signal || 'unknown').catch((err) => {
-      this.logger.error('Error during shutdown', { cause: err });
+  async onApplicationShutdown() {
+    this.logger.info('Graceful shutdown started');
+
+    await this.shutdown().catch((err) => {
+      this.logger.error('Error occurred while closing metrics server', {
+        cause: err,
+      });
     });
+
+    this.logger.info('Graceful shutdown completed');
   }
 
-  private async shutdown(signal: string) {
+  private async shutdown() {
     if (!this.server) return;
-
-    this.logger.info(`Received signal ${signal}. Shutting down...`);
 
     await new Promise<void>((resolve, reject) => {
       this.server.close((err?: Error) => {

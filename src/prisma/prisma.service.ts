@@ -50,6 +50,11 @@ export class PrismaService
   }
 
   async onApplicationShutdown() {
+    this.logger.info('Graceful shutdown started');
+
+    // Disconnect
     await this.$disconnect();
+
+    this.logger.info('Graceful shutdown completed');
   }
 }
