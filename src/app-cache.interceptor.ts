@@ -1,5 +1,6 @@
 import { CacheInterceptor } from '@nestjs/cache-manager';
 import { ExecutionContext, Injectable } from '@nestjs/common';
+import { DISABLE_CACHE_KEY } from '@Common';
 
 @Injectable()
 export class AppCacheInterceptor extends CacheInterceptor {
@@ -8,14 +9,19 @@ export class AppCacheInterceptor extends CacheInterceptor {
     if (hostType === 'http') {
       const request = context.switchToHttp().getRequest();
       const { method, url, user } = request;
-      const excludePaths: string[] = []; // Define your exclusion paths
-      if (excludePaths.some((path) => url.startsWith(path))) {
-        return undefined; // Do not cache
-      }
       if (method === 'GET' && /\/me(?:\/|$)/.test(url) && user) {
         return url.concat(`(me=${user.id})`);
       }
     }
     return super.trackBy(context);
+  }
+
+  protected isRequestCacheable(context: ExecutionContext): boolean {
+    const disabled = this.reflector.getAllAndOverride<boolean>(
+      DISABLE_CACHE_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+    if (disabled) return false;
+    return super.isRequestCacheable(context);
   }
 }

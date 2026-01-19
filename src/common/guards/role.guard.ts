@@ -3,7 +3,9 @@ import { Reflector } from '@nestjs/core';
 import { SetMetadata } from '@nestjs/common';
 import { UserType } from '@Common';
 
-export const Roles = (...roles: UserType[]) => SetMetadata('roles', roles);
+export const ROLES_KEY = 'roles';
+
+export const Roles = (...roles: UserType[]) => SetMetadata(ROLES_KEY, roles);
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -11,7 +13,7 @@ export class RolesGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     // Get the roles required
-    const roles = this.reflector.getAllAndOverride<string[]>('roles', [
+    const roles = this.reflector.getAllAndOverride<string[]>(ROLES_KEY, [
       context.getHandler(),
       context.getClass(),
     ]);
