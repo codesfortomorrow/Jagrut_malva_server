@@ -1,6 +1,11 @@
 import { join } from 'node:path';
 import { Cache } from 'cache-manager';
-import { Inject, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import {
@@ -21,6 +26,7 @@ import {
 import {
   OtpTransport,
   Prisma,
+  Privilege,
   User,
   UserMeta,
   UserStatus,
@@ -601,6 +607,193 @@ export class UsersService {
       skip: pagination.skip,
       take: pagination.take,
       data: response,
+    };
+  }
+
+  // GET ALL ROLES ASSIGNED TO A USER
+  async getUserRoles(userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
+
+    const userRoles = await this.prisma.userRole.findMany({
+      where: { userId },
+      include: {
+        role: true,
+      },
+      orderBy: {
+        roleId: 'asc',
+      },
+    });
+
+    return {
+      userId: user.id,
+      userName: `${user.firstname} ${user.lastname}`.trim(),
+      roles: userRoles.map((ur) => ({
+        ...ur.role,
+        assignedAt: ur.assignedAt,
+      })),
+      total: userRoles.length,
+    };
+  }
+
+  // ASSIGN A ROLE TO A USER
+  async assignRole(userId: number, roleId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
+
+    const role = await this.prisma.role.findUnique({
+      where: { id: roleId },
+    });
+
+    if (!role) {
+      throw new NotFoundException(`Role with ID ${roleId} not found`);
+    }
+
+    const existing = await this.prisma.userRole.findUnique({
+      where: {
+        userId_roleId: {
+          userId,
+          roleId,
+        },
+      },
+    });
+
+    if (existing) {
+      throw new BadRequestException(
+        `Role '${role.name}' is already assigned to user with ID ${userId}`,
+      );
+    }
+
+    const userRole = await this.prisma.userRole.create({
+      data: {
+        userId,
+        roleId,
+      },
+      include: {
+        role: true,
+      },
+    });
+
+    return {
+      message: `Role '${role.name}' assigned to user successfully`,
+      userRole: {
+        userId: userRole.userId,
+        roleId: userRole.roleId,
+        role: userRole.role,
+        assignedAt: userRole.assignedAt,
+      },
+    };
+  }
+
+  // REMOVE A ROLE FROM A USER
+  async removeRole(userId: number, roleId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
+
+    const role = await this.prisma.role.findUnique({
+      where: { id: roleId },
+    });
+
+    if (!role) {
+      throw new NotFoundException(`Role with ID ${roleId} not found`);
+    }
+
+    const userRole = await this.prisma.userRole.findUnique({
+      where: {
+        userId_roleId: {
+          userId,
+          roleId,
+        },
+      },
+    });
+
+    if (!userRole) {
+      throw new NotFoundException(
+        `Role with ID ${roleId} is not assigned to user with ID ${userId}`,
+      );
+    }
+
+    await this.prisma.userRole.delete({
+      where: {
+        userId_roleId: {
+          userId,
+          roleId,
+        },
+      },
+    });
+
+    return {
+      message: `Role '${role.name}' removed from user successfully`,
+    };
+  }
+
+  // GET EFFECTIVE PRIVILEGES OF A USER (UNION OF ALL ASSIGNED ROLES' PRIVILEGES)
+  async getEffectivePrivileges(userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
+
+    const userRoles = await this.prisma.userRole.findMany({
+      where: { userId },
+      include: {
+        role: {
+          include: {
+            privileges: {
+              include: {
+                privilege: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        roleId: 'asc',
+      },
+    });
+
+    const privilegeMap = new Map<number, Privilege>();
+    const assignedRoles = userRoles.map((ur) => ({
+      id: ur.role.id,
+      name: ur.role.name,
+    }));
+
+    for (const ur of userRoles) {
+      for (const rp of ur.role.privileges) {
+        if (!privilegeMap.has(rp.privilege.id)) {
+          privilegeMap.set(rp.privilege.id, rp.privilege);
+        }
+      }
+    }
+
+    const effectivePrivileges = Array.from(privilegeMap.values()).sort(
+      (a, b) => a.id - b.id,
+    );
+
+    return {
+      userId: user.id,
+      userName: `${user.firstname} ${user.lastname}`.trim(),
+      roles: assignedRoles,
+      privileges: effectivePrivileges,
+      total: effectivePrivileges.length,
     };
   }
 }

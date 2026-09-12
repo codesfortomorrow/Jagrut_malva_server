@@ -63,6 +63,7 @@ model User {
   updatedAt    DateTime      @updatedAt @map("updated_at")
   meta         UserMeta?
   settings     UserSetting[]
+  roles        UserRole[]
 
   @@map("user")
 }
@@ -162,4 +163,51 @@ model SystemSetting {
 
   @@id([settingId])
   @@map("system_setting")
+}
+
+// ─── Jagrut Malwa: RBAC Foundation ───────────────────────────────────────────
+
+model Role {
+  id          Int             @id @default(autoincrement())
+  name        String          @unique
+  description String          @default("")
+  isSystem    Boolean         @default(false) @map("is_system")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  privileges  RolePrivilege[]
+  users       UserRole[]
+
+  @@map("role")
+}
+
+model Privilege {
+  id          Int             @id @default(autoincrement())
+  key         String          @unique
+  label       String
+  description String          @default("")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  roles       RolePrivilege[]
+
+  @@map("privilege")
+}
+
+model RolePrivilege {
+  role        Role      @relation(fields: [roleId], references: [id])
+  roleId      Int       @map("role_id")
+  privilege   Privilege @relation(fields: [privilegeId], references: [id])
+  privilegeId Int       @map("privilege_id")
+
+  @@id([roleId, privilegeId])
+  @@map("role_privilege")
+}
+
+model UserRole {
+  user       User     @relation(fields: [userId], references: [id])
+  userId     Int      @map("user_id")
+  role       Role     @relation(fields: [roleId], references: [id])
+  roleId     Int      @map("role_id")
+  assignedAt DateTime @default(now()) @map("assigned_at")
+
+  @@id([userId, roleId])
+  @@map("user_role")
 }

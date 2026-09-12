@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseEnumPipe,
@@ -12,7 +13,13 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiParam, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import {
   AuthenticatedRequest,
   BaseController,
@@ -24,6 +31,7 @@ import {
 } from '@Common';
 import { UsersService } from './users.service';
 import {
+  AssignRoleRequestDto,
   ChangePasswordRequestDto,
   GetUsersRequestDto,
   UpdateProfileDetailsRequestDto,
@@ -140,5 +148,70 @@ export class UsersController extends BaseController {
   ) {
     await this.usersService.setStatus(userId, status);
     return { status: 'success' };
+  }
+
+  // GET ROLES ASSIGNED TO A USER
+  @Get(':userId/roles')
+  @ApiOperation({ summary: 'Get all roles assigned to a user' })
+  @ApiParam({ name: 'userId', type: Number, description: 'User ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of roles assigned to the user',
+  })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  getUserRoles(@Param('userId', ParseIntPipe) userId: number) {
+    return this.usersService.getUserRoles(userId);
+  }
+
+  // ASSIGN A ROLE TO A USER
+  @Post(':userId/roles')
+  @ApiOperation({ summary: 'Assign a role to a user' })
+  @ApiParam({ name: 'userId', type: Number, description: 'User ID' })
+  @ApiResponse({
+    status: 201,
+    description: 'Role assigned to user successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Role is already assigned to this user',
+  })
+  @ApiResponse({ status: 404, description: 'User or role not found' })
+  assignRole(
+    @Param('userId', ParseIntPipe) userId: number,
+    @Body() dto: AssignRoleRequestDto,
+  ) {
+    return this.usersService.assignRole(userId, dto.roleId);
+  }
+
+  // REMOVE A ROLE FROM A USER
+  @Delete(':userId/roles/:roleId')
+  @ApiOperation({ summary: 'Remove a role from a user' })
+  @ApiParam({ name: 'userId', type: Number, description: 'User ID' })
+  @ApiParam({ name: 'roleId', type: Number, description: 'Role ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Role removed from user successfully',
+  })
+  @ApiResponse({ status: 404, description: 'User, role, or mapping not found' })
+  removeRole(
+    @Param('userId', ParseIntPipe) userId: number,
+    @Param('roleId', ParseIntPipe) roleId: number,
+  ) {
+    return this.usersService.removeRole(userId, roleId);
+  }
+
+  // GET EFFECTIVE PRIVILEGES OF A USER
+  @Get(':userId/privileges')
+  @ApiOperation({
+    summary: 'Get effective privileges derived from all assigned roles',
+  })
+  @ApiParam({ name: 'userId', type: Number, description: 'User ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Deduplicated list of effective privileges',
+  })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  getEffectivePrivileges(@Param('userId', ParseIntPipe) userId: number) {
+    return this.usersService.getEffectivePrivileges(userId);
   }
 }

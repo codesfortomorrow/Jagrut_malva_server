@@ -84,7 +84,7 @@ export class AdminService {
     const admin = await this.getById(adminId);
     const validation = await this.validateCredentials(admin.email, password);
 
-    if (!validation === null) throw new Error('Admin not found');
+    if (validation === null) throw new Error('Admin not found');
     if (validation === false) throw new Error('Incorrect password');
 
     return admin;
