@@ -9,6 +9,7 @@ import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../../prisma';
 import { REQUIRE_PRIVILEGE_KEY } from '../decorators';
 import { AuthenticatedUser, UserType } from '../types';
+import { ADMIN_ROLE_NAME } from '../../roles/privilege-catalog.constant';
 
 @Injectable()
 export class PrivilegeGuard implements CanActivate {
@@ -30,17 +31,14 @@ export class PrivilegeGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const user = request.user as AuthenticatedUser | undefined;
 
-    if (!user || !user.id) {
+    if (!user?.id) {
       throw new UnauthorizedException('Authentication required');
     }
 
-    const userPrivileges = await this.getUserPrivileges(user);
+    const privileges = await this.getUserPrivileges(user);
 
-    const hasPrivilege = requiredPrivileges.some((privilege) =>
-      userPrivileges.has(privilege),
-    );
-
-    if (!hasPrivilege) {
+    const hasAny = requiredPrivileges.some((key) => privileges.has(key));
+    if (!hasAny) {
       throw new ForbiddenException('Access denied: insufficient privileges');
     }
 
@@ -50,52 +48,36 @@ export class PrivilegeGuard implements CanActivate {
   private async getUserPrivileges(
     user: AuthenticatedUser,
   ): Promise<Set<string>> {
-    const privilegeKeys = new Set<string>();
+    const keys = new Set<string>();
 
-    if (user.type === UserType.User) {
+    if (user.type === UserType.Admin) {
+      const adminRole = await this.prisma.role.findUnique({
+        where: { name: ADMIN_ROLE_NAME },
+        include: { privileges: { include: { privilege: true } } },
+      });
+
+      if (adminRole) {
+        for (const rp of adminRole.privileges) {
+          if (rp.privilege?.key) keys.add(rp.privilege.key);
+        }
+      }
+    } else if (user.type === UserType.User) {
       const userRoles = await this.prisma.userRole.findMany({
         where: { userId: user.id },
         include: {
           role: {
-            include: {
-              privileges: {
-                include: {
-                  privilege: true,
-                },
-              },
-            },
+            include: { privileges: { include: { privilege: true } } },
           },
         },
       });
 
       for (const ur of userRoles) {
         for (const rp of ur.role.privileges) {
-          if (rp.privilege?.key) {
-            privilegeKeys.add(rp.privilege.key);
-          }
-        }
-      }
-    } else if (user.type === UserType.Admin) {
-      const adminRole = await this.prisma.role.findUnique({
-        where: { name: 'ADMIN' },
-        include: {
-          privileges: {
-            include: {
-              privilege: true,
-            },
-          },
-        },
-      });
-
-      if (adminRole) {
-        for (const rp of adminRole.privileges) {
-          if (rp.privilege?.key) {
-            privilegeKeys.add(rp.privilege.key);
-          }
+          if (rp.privilege?.key) keys.add(rp.privilege.key);
         }
       }
     }
 
-    return privilegeKeys;
+    return keys;
   }
 }

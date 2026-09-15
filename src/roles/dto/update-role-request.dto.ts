@@ -1,6 +1,8 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
+  ArrayUnique,
+  IsArray,
   IsOptional,
   IsString,
   Matches,
@@ -28,11 +30,22 @@ export class UpdateRoleRequestDto {
 
   @ApiPropertyOptional({
     description: 'Updated description of the role responsibilities',
-    example: 'Updated coordinator responsibilities for field logistics',
   })
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsOptional()
   @IsString()
   @MaxLength(255)
   description?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Full replacement set of privilege keys. When provided, replaces all existing privileges on the role.',
+    type: [String],
+    example: ['dashboard.view', 'geo_unit.edit'],
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @IsString({ each: true })
+  privilegeKeys?: string[];
 }
