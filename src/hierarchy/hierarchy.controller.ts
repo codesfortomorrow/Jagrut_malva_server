@@ -42,8 +42,6 @@ export class HierarchyController extends BaseController {
     super();
   }
 
-  // ── Tree ───────────────────────────────────────────────────────────────────
-
   @RequirePrivilege('hierarchy.view')
   @Get('tree')
   @ApiOperation({
@@ -54,29 +52,23 @@ export class HierarchyController extends BaseController {
     return this.hierarchyService.getTree();
   }
 
-  // ── Flat List ──────────────────────────────────────────────────────────────
-
   @RequirePrivilege('hierarchy.view')
   @Get()
   @ApiOperation({
     summary:
       'List all hierarchy nodes (flat, paginated) with optional level/status/parent filters',
   })
-  listNodes(@Query() query: GetHierarchyNodesDto) {
-    return this.hierarchyService.listNodes(query);
+  findAll(@Query() filter: GetHierarchyNodesDto) {
+    return this.hierarchyService.findAll(filter);
   }
-
-  // ── Single Node ────────────────────────────────────────────────────────────
 
   @RequirePrivilege('hierarchy.view')
   @Get(':id')
   @ApiOperation({ summary: 'Get a single hierarchy node by ID' })
   @ApiParam({ name: 'id', type: Number })
-  getNode(@Param('id', ParseIntPipe) id: number) {
-    return this.hierarchyService.getNode(id);
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.hierarchyService.findOne(id);
   }
-
-  // ── Children ───────────────────────────────────────────────────────────────
 
   @RequirePrivilege('hierarchy.view')
   @Get(':id/children')
@@ -86,19 +78,15 @@ export class HierarchyController extends BaseController {
     return this.hierarchyService.getChildren(id);
   }
 
-  // ── Create ─────────────────────────────────────────────────────────────────
-
   @RequirePrivilege('hierarchy.create')
   @Post()
   @ApiOperation({
     summary:
-      'Create a new hierarchy node. Level and parent must follow strict hierarchy rules (Sangh → Jila → Khand Nagar → Mandal Basti → Gram Mohalla)',
+      'Create a new hierarchy node. Strict level rules apply: Sangh → Jila → Khand Nagar → Mandal Basti → Gram Mohalla',
   })
-  createNode(@Body() dto: CreateHierarchyNodeDto) {
-    return this.hierarchyService.createNode(dto);
+  create(@Body() dto: CreateHierarchyNodeDto) {
+    return this.hierarchyService.create(dto);
   }
-
-  // ── Update ─────────────────────────────────────────────────────────────────
 
   @RequirePrivilege('hierarchy.edit')
   @Put(':id')
@@ -107,14 +95,12 @@ export class HierarchyController extends BaseController {
       'Update a hierarchy node name and/or description. Level and parent are immutable.',
   })
   @ApiParam({ name: 'id', type: Number })
-  updateNode(
+  update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateHierarchyNodeDto,
   ) {
-    return this.hierarchyService.updateNode(id, dto);
+    return this.hierarchyService.update(id, dto);
   }
-
-  // ── Status ─────────────────────────────────────────────────────────────────
 
   @RequirePrivilege('hierarchy.edit')
   @Patch(':id/:status')
@@ -129,15 +115,13 @@ export class HierarchyController extends BaseController {
     return this.hierarchyService.setStatus(id, status);
   }
 
-  // ── Delete ─────────────────────────────────────────────────────────────────
-
   @RequirePrivilege('hierarchy.delete')
   @Delete(':id')
   @ApiOperation({
     summary: 'Delete a leaf hierarchy node (node must have no children)',
   })
   @ApiParam({ name: 'id', type: Number })
-  deleteNode(@Param('id', ParseIntPipe) id: number) {
-    return this.hierarchyService.deleteNode(id);
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.hierarchyService.remove(id);
   }
 }

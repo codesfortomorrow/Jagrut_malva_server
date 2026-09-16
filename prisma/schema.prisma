@@ -48,22 +48,23 @@ enum UserStatus {
 }
 
 model User {
-  id           Int           @id @default(autoincrement())
-  firstname    String
-  lastname     String
-  username     String?       @unique
-  email        String        @unique
-  dialCode     String?       @map("dial_code")
-  mobile       String?       @unique
-  profileImage String?       @map("profile_image")
-  isVerified   Boolean       @default(false) @map("is_verified")
-  country      String?
-  status       UserStatus    @default(Active)
-  createdAt    DateTime      @default(now()) @map("created_at")
-  updatedAt    DateTime      @updatedAt @map("updated_at")
-  meta         UserMeta?
-  settings     UserSetting[]
-  roles        UserRole[]
+  id                 Int             @id @default(autoincrement())
+  firstname          String
+  lastname           String
+  username           String?         @unique
+  email              String          @unique
+  dialCode           String?         @map("dial_code")
+  mobile             String?         @unique
+  profileImage       String?         @map("profile_image")
+  isVerified         Boolean         @default(false) @map("is_verified")
+  country            String?
+  status             UserStatus      @default(Active)
+  createdAt          DateTime        @default(now()) @map("created_at")
+  updatedAt          DateTime        @updatedAt @map("updated_at")
+  meta               UserMeta?
+  settings           UserSetting[]
+  roles              UserRole[]
+  receivedDispatches DispatchEntry[] @relation("DispatchesReceived")
 
   @@map("user")
 }
@@ -249,19 +250,93 @@ enum HierarchyStatus {
 }
 
 model HierarchyNode {
-  id          Int             @id @default(autoincrement())
-  name        String
-  level       HierarchyLevel
-  status      HierarchyStatus @default(Active)
-  description String          @default("")
-  parent      HierarchyNode?  @relation("HierarchyTree", fields: [parentId], references: [id])
-  parentId    Int?            @map("parent_id")
-  children    HierarchyNode[] @relation("HierarchyTree")
-  createdAt   DateTime        @default(now()) @map("created_at")
-  updatedAt   DateTime        @updatedAt @map("updated_at")
+  id             Int             @id @default(autoincrement())
+  name           String
+  level          HierarchyLevel
+  status         HierarchyStatus @default(Active)
+  description    String          @default("")
+  parent         HierarchyNode?  @relation("HierarchyTree", fields: [parentId], references: [id])
+  parentId       Int?            @map("parent_id")
+  children       HierarchyNode[] @relation("HierarchyTree")
+  dispatchesFrom DispatchEntry[] @relation("DispatchesFrom")
+  dispatchesTo   DispatchEntry[] @relation("DispatchesTo")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
 
   @@unique([parentId, name])
   @@index([level])
   @@index([parentId])
   @@map("hierarchy_node")
+}
+
+// ─── Jagrut Malwa: Publish Issue Module ───────────────────────────────────────
+
+enum PublishIssueStatus {
+  Draft     @map("draft")
+  Published @map("published")
+  Archived  @map("archived")
+
+  @@map("publish_issue_status")
+}
+
+model PublishIssue {
+  id           Int                @id @default(autoincrement())
+  issueNo      String             @unique @map("issue_no")
+  title        String             @default("")
+  publishDate  DateTime           @map("publish_date")
+  totalCopies  Int                @map("total_copies")
+  pricePerCopy Float?             @map("price_per_copy")
+  pageCount    Int?               @map("page_count")
+  filePath     String?            @map("file_path")
+  status       PublishIssueStatus @default(Draft)
+  dispatches   DispatchEntry[]
+  createdAt    DateTime           @default(now()) @map("created_at")
+  updatedAt    DateTime           @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([publishDate])
+  @@map("publish_issue")
+}
+
+// ─── Jagrut Malwa: Dispatch Module ────────────────────────────────────────────
+
+enum DispatchStatus {
+  Draft       @map("draft")
+  Dispatched  @map("dispatched")
+  InTransit   @map("in_transit")
+  Received    @map("received")
+  Discrepancy @map("discrepancy")
+  Forwarded   @map("forwarded")
+  Completed   @map("completed")
+  Cancelled   @map("cancelled")
+
+  @@map("dispatch_status")
+}
+
+model DispatchEntry {
+  id               Int            @id @default(autoincrement())
+  issue            PublishIssue   @relation(fields: [issueId], references: [id], onDelete: Restrict)
+  issueId          Int            @map("issue_id")
+  fromPoint        HierarchyNode? @relation("DispatchesFrom", fields: [fromPointId], references: [id], onDelete: Restrict)
+  fromPointId      Int?           @map("from_point_id")
+  toPoint          HierarchyNode  @relation("DispatchesTo", fields: [toPointId], references: [id], onDelete: Restrict)
+  toPointId        Int            @map("to_point_id")
+  quantity         Int
+  dispatchDate     DateTime       @default(now()) @map("dispatch_date")
+  trackingLink     String?        @map("tracking_link")
+  status           DispatchStatus @default(Dispatched)
+  receivedQuantity Int?           @map("received_quantity")
+  receivedAt       DateTime?      @map("received_at")
+  receivedBy       User?          @relation("DispatchesReceived", fields: [receivedById], references: [id], onDelete: Restrict)
+  receivedById     Int?           @map("received_by_id")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+
+  @@index([issueId])
+  @@index([fromPointId])
+  @@index([toPointId])
+  @@index([status])
+  @@index([dispatchDate])
+  @@index([receivedById])
+  @@map("dispatch_entry")
 }

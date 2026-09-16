@@ -179,6 +179,56 @@ const MODULE_DEFINITIONS: ModuleDefinition[] = [
       },
     ],
   },
+  {
+    module: 'publish_issues',
+    label: 'Publish Issue Management',
+    permissions: [
+      {
+        action: 'view',
+        description: 'View publish issues and their details',
+      },
+      {
+        action: 'create',
+        description: 'Create new publish issues',
+      },
+      {
+        action: 'edit',
+        description: 'Update publish issues and modify their lifecycle status',
+      },
+    ],
+  },
+  {
+    module: 'dispatches',
+    label: 'Magazine Dispatch & Tracking',
+    permissions: [
+      {
+        action: 'view',
+        description: 'View dispatches, history, and chain of custody tracking',
+      },
+      {
+        action: 'create',
+        description: 'Create dispatches for published magazine issues',
+      },
+      {
+        action: 'edit',
+        description: 'Update dispatch tracking and transit details',
+      },
+      {
+        action: 'receive',
+        description:
+          'Receive and verify dispatched consignments at hierarchy points',
+      },
+      {
+        action: 'forward',
+        description:
+          'Forward received consignments to downstream hierarchy points',
+      },
+      {
+        action: 'cancel',
+        description: 'Cancel unreceived or in-transit dispatches',
+      },
+    ],
+  },
 ];
 
 // Runtime check to prevent accidental duplicate module names

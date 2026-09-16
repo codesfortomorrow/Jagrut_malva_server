@@ -15,6 +15,8 @@ import { AuthModule } from './auth';
 import { RedisModule } from './redis';
 import { RolesModule } from './roles';
 import { HierarchyModule } from './hierarchy';
+import { PublishIssuesModule } from './publish-issues';
+import { DispatchesModule } from './dispatches';
 
 @Module({
   imports: [
@@ -40,6 +42,8 @@ import { HierarchyModule } from './hierarchy';
     AuthModule,
     RolesModule,
     HierarchyModule,
+    PublishIssuesModule,
+    DispatchesModule,
   ],
   controllers: [AppController],
   providers: [
