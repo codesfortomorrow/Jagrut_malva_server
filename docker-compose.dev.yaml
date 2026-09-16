@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:18
-    container_name: nestjs-app-postgres
+    container_name: jagrut-malva-postgres
     restart: unless-stopped
     shm_size: 128mb
     ports:
@@ -13,7 +13,7 @@ services:
       - postgres:/var/lib/postgresql
   pgadmin:
     image: dpage/pgadmin4:9
-    container_name: nestjs-app-pgadmin
+    container_name: jagrut-malva-pgadmin
     restart: unless-stopped
     ports:
       - ${PGADMIN_PORT}:80
@@ -24,7 +24,7 @@ services:
       - pgadmin:/var/lib/pgadmin
   redis:
     image: redis/redis-stack:7.4.0-v8
-    container_name: nestjs-app-redis
+    container_name: jagrut-malva-redis
     restart: unless-stopped
     ports:
       - ${REDIS_PORT}:6379
@@ -35,7 +35,7 @@ services:
       - redis:/data
   mongo:
     image: mongo:8
-    container_name: nestjs-app-mongo
+    container_name: jagrut-malva-mongo
     restart: unless-stopped
     ports:
       - ${MONGO_PORT}:27017
@@ -46,15 +46,15 @@ services:
     volumes:
       - mongo:/data/db
       - mongo-config:/data/configdb
-  nestjs-app:
-    image: nestjs-app-dev
+  jagrut-malva:
+    image: jagrut-malva-dev
     build:
       context: .
-      target: nestjs-app-dev
+      target: jagrut-malva-dev
       args:
         - PORT:${PORT}
         - METRICS_PORT:${METRICS_PORT}
-    container_name: nestjs-app-dev
+    container_name: jagrut-malva-dev
     restart: unless-stopped
     stop_grace_period: 600s
     ports:
@@ -64,18 +64,18 @@ services:
       - postgres
       - redis
     volumes:
-      - .:/nestjs-app/
+      - .:/jagrut-malva/
 volumes:
   postgres:
-    name: nestjs-app-postgres
+    name: jagrut-malva-postgres
   redis:
-    name: nestjs-app-redis
+    name: jagrut-malva-redis
   mongo:
-    name: nestjs-app-mongo
+    name: jagrut-malva-mongo
   mongo-config:
-    name: nestjs-app-mongo-config
+    name: jagrut-malva-mongo-config
   pgadmin:
-    name: nestjs-app-pgadmin
+    name: jagrut-malva-pgadmin
 networks:
   default:
-    name: nestjs-app
+    name: jagrut-malva

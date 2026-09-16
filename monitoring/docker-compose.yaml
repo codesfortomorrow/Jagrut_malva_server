@@ -27,9 +27,9 @@ services:
       - grafana:/var/lib/grafana
 volumes:
   prometheus:
-    name: nestjs-app-prometheus
+    name: jagrut-malva-prometheus
   grafana:
-    name: nestjs-app-grafana
+    name: jagrut-malva-grafana
 networks:
   default:
-    name: nestjs-app-monitoring
+    name: jagrut-malva-monitoring
