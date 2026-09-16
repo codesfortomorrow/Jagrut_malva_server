@@ -2,9 +2,9 @@ global:
   scrape_interval: 15s
 
 scrape_configs:
-  - job_name: nestjs-app
+  - job_name: jagrut-malva
     static_configs:
       - targets: ['host.docker.internal:8080']
-  # - job_name: nestjs-app-cluster
+  # - job_name: jagrut-malva-cluster
   #   static_configs:
   #     - targets: ['host.docker.internal:8081']
