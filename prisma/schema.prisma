@@ -165,13 +165,29 @@ model SystemSetting {
   @@map("system_setting")
 }
 
-// ─── Jagrut Malwa: RBAC Foundation ───────────────────────────────────────────
+// ─── Jagrut Malwa: RBAC ───────────────────────────────────────────────────────
+
+enum RoleType {
+  System @map("system")
+  Custom @map("custom")
+
+  @@map("role_type")
+}
+
+enum RoleStatus {
+  Active   @map("active")
+  InActive @map("inactive")
+
+  @@map("role_status")
+}
 
 model Role {
   id          Int             @id @default(autoincrement())
   name        String          @unique
   description String          @default("")
-  isSystem    Boolean         @default(false) @map("is_system")
+  type        RoleType        @default(Custom)
+  status      RoleStatus      @default(Active)
+  isProtected Boolean         @default(false) @map("is_protected")
   createdAt   DateTime        @default(now()) @map("created_at")
   updatedAt   DateTime        @updatedAt @map("updated_at")
   privileges  RolePrivilege[]
@@ -183,7 +199,8 @@ model Role {
 model Privilege {
   id          Int             @id @default(autoincrement())
   key         String          @unique
-  label       String
+  module      String
+  action      String
   description String          @default("")
   createdAt   DateTime        @default(now()) @map("created_at")
   roles       RolePrivilege[]
@@ -192,9 +209,9 @@ model Privilege {
 }
 
 model RolePrivilege {
-  role        Role      @relation(fields: [roleId], references: [id])
+  role        Role      @relation(fields: [roleId], references: [id], onDelete: Cascade)
   roleId      Int       @map("role_id")
-  privilege   Privilege @relation(fields: [privilegeId], references: [id])
+  privilege   Privilege @relation(fields: [privilegeId], references: [id], onDelete: Cascade)
   privilegeId Int       @map("privilege_id")
 
   @@id([roleId, privilegeId])

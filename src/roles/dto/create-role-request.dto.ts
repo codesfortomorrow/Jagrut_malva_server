@@ -1,6 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
+  ArrayMinSize,
+  ArrayUnique,
+  IsArray,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -36,4 +39,16 @@ export class CreateRoleRequestDto {
   @IsString()
   @MaxLength(255)
   description?: string;
+
+  @ApiProperty({
+    description:
+      'Privilege keys to assign to this role (e.g. ["dashboard.view", "geo_unit.create"])',
+    type: [String],
+    example: ['dashboard.view', 'geo_unit.create'],
+  })
+  @IsArray()
+  @ArrayMinSize(1, { message: 'A role must have at least one privilege' })
+  @ArrayUnique()
+  @IsString({ each: true })
+  privilegeKeys: string[];
 }

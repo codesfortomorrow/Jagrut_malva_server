@@ -28,6 +28,8 @@ import {
   UserType,
   Roles,
   AccessGuard,
+  PrivilegeGuard,
+  RequirePrivilege,
 } from '@Common';
 import { UsersService } from './users.service';
 import {
@@ -151,6 +153,8 @@ export class UsersController extends BaseController {
   }
 
   // GET ROLES ASSIGNED TO A USER
+  @RequirePrivilege('roles.view')
+  @UseGuards(PrivilegeGuard)
   @Get(':userId/roles')
   @ApiOperation({ summary: 'Get all roles assigned to a user' })
   @ApiParam({ name: 'userId', type: Number, description: 'User ID' })
@@ -164,6 +168,8 @@ export class UsersController extends BaseController {
   }
 
   // ASSIGN A ROLE TO A USER
+  @RequirePrivilege('roles.assign')
+  @UseGuards(PrivilegeGuard)
   @Post(':userId/roles')
   @ApiOperation({ summary: 'Assign a role to a user' })
   @ApiParam({ name: 'userId', type: Number, description: 'User ID' })
@@ -184,6 +190,8 @@ export class UsersController extends BaseController {
   }
 
   // REMOVE A ROLE FROM A USER
+  @RequirePrivilege('roles.assign')
+  @UseGuards(PrivilegeGuard)
   @Delete(':userId/roles/:roleId')
   @ApiOperation({ summary: 'Remove a role from a user' })
   @ApiParam({ name: 'userId', type: Number, description: 'User ID' })
@@ -201,6 +209,8 @@ export class UsersController extends BaseController {
   }
 
   // GET EFFECTIVE PRIVILEGES OF A USER
+  @RequirePrivilege('roles.view')
+  @UseGuards(PrivilegeGuard)
   @Get(':userId/privileges')
   @ApiOperation({
     summary: 'Get effective privileges derived from all assigned roles',

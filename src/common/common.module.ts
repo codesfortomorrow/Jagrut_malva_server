@@ -4,6 +4,7 @@ import * as configs from '@Config';
 import { validateEnvironmentVariables } from './utils';
 import { StorageService, UtilsService } from './providers';
 import { JwtStrategy } from './strategies';
+import { PrismaModule } from '../prisma';
 
 const providers = [StorageService, UtilsService, JwtStrategy];
 
@@ -16,6 +17,7 @@ const providers = [StorageService, UtilsService, JwtStrategy];
       load: Object.values(configs),
       validate: validateEnvironmentVariables,
     }),
+    PrismaModule,
   ],
   providers: providers,
   exports: providers,

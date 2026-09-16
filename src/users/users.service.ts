@@ -14,6 +14,7 @@ import {
   UtilsService,
   ValidatedUser,
   getAccessGuardCacheKey,
+  getPrivilegeGuardCacheKey,
 } from '@Common';
 import { userConfigFactory } from '@Config';
 import { PrismaService } from '../prisma';
@@ -684,6 +685,11 @@ export class UsersService {
       },
     });
 
+    // Invalidate cached privileges so new permissions take effect immediately
+    await this.cacheManager.del(
+      getPrivilegeGuardCacheKey({ id: userId, type: UserType.User }),
+    );
+
     return {
       message: `Role '${role.name}' assigned to user successfully`,
       userRole: {
@@ -736,6 +742,11 @@ export class UsersService {
         },
       },
     });
+
+    // Invalidate cached privileges so removal takes effect immediately
+    await this.cacheManager.del(
+      getPrivilegeGuardCacheKey({ id: userId, type: UserType.User }),
+    );
 
     return {
       message: `Role '${role.name}' removed from user successfully`,
