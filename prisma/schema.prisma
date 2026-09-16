@@ -228,3 +228,40 @@ model UserRole {
   @@id([userId, roleId])
   @@map("user_role")
 }
+
+// ─── Jagrut Malwa: Organization Hierarchy ────────────────────────────────────
+
+enum HierarchyLevel {
+  Sangh       @map("sangh")
+  Jila        @map("jila")
+  KhandNagar  @map("khand_nagar")
+  MandalBasti @map("mandal_basti")
+  GramMohalla @map("gram_mohalla")
+
+  @@map("hierarchy_level")
+}
+
+enum HierarchyStatus {
+  Active   @map("active")
+  InActive @map("inactive")
+
+  @@map("hierarchy_status")
+}
+
+model HierarchyNode {
+  id          Int             @id @default(autoincrement())
+  name        String
+  level       HierarchyLevel
+  status      HierarchyStatus @default(Active)
+  description String          @default("")
+  parent      HierarchyNode?  @relation("HierarchyTree", fields: [parentId], references: [id])
+  parentId    Int?            @map("parent_id")
+  children    HierarchyNode[] @relation("HierarchyTree")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  @@unique([parentId, name])
+  @@index([level])
+  @@index([parentId])
+  @@map("hierarchy_node")
+}

@@ -156,6 +156,29 @@ const MODULE_DEFINITIONS: ModuleDefinition[] = [
       },
     ],
   },
+  {
+    module: 'hierarchy',
+    label: 'Organization Hierarchy',
+    permissions: [
+      {
+        action: 'view',
+        description:
+          'View the organization hierarchy tree and individual nodes',
+      },
+      {
+        action: 'create',
+        description: 'Create new nodes in the organization hierarchy',
+      },
+      {
+        action: 'edit',
+        description: 'Update name, description, or status of hierarchy nodes',
+      },
+      {
+        action: 'delete',
+        description: 'Delete leaf nodes from the organization hierarchy',
+      },
+    ],
+  },
 ];
 
 // Runtime check to prevent accidental duplicate module names

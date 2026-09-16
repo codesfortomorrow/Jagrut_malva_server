@@ -14,6 +14,7 @@ import { PrismaModule } from './prisma';
 import { AuthModule } from './auth';
 import { RedisModule } from './redis';
 import { RolesModule } from './roles';
+import { HierarchyModule } from './hierarchy';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { RolesModule } from './roles';
     RedisModule,
     AuthModule,
     RolesModule,
+    HierarchyModule,
   ],
   controllers: [AppController],
   providers: [
