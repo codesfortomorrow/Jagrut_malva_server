@@ -25,13 +25,16 @@ import {
   VerifyCodeResponse,
 } from '../otp';
 import {
+  HierarchyStatus,
   OtpTransport,
   Prisma,
   Privilege,
+  RoleStatus,
   User,
   UserMeta,
   UserStatus,
 } from '../generated/prisma/client';
+import { CreateUserRequestDto } from './dto';
 
 @Injectable()
 export class UsersService {
@@ -223,6 +226,237 @@ export class UsersService {
             passwordHash,
             passwordSalt,
             googleId: data.googleId,
+          },
+        },
+      },
+    });
+  }
+
+  private async isEligibleReportingAuthority(
+    nodeId: number,
+    reportingUserId: number,
+  ): Promise<boolean> {
+    // Collect all eligible node IDs: nodeId itself + all ancestors up to Prant (root)
+    const eligibleNodeIds: number[] = [nodeId];
+    let currentNode = await this.prisma.hierarchyNode.findUnique({
+      where: { id: nodeId },
+      select: { parentId: true },
+    });
+
+    while (currentNode && currentNode.parentId) {
+      eligibleNodeIds.push(currentNode.parentId);
+      currentNode = await this.prisma.hierarchyNode.findUnique({
+        where: { id: currentNode.parentId },
+        select: { parentId: true },
+      });
+    }
+
+    // Check if reportingUserId has an active assignment in any of these eligibleNodeIds
+    const activeAssignment =
+      await this.prisma.userHierarchyDesignation.findFirst({
+        where: {
+          userId: reportingUserId,
+          nodeId: { in: eligibleNodeIds },
+          isActive: true,
+        },
+      });
+
+    return !!activeAssignment;
+  }
+
+  async createUser(dto: CreateUserRequestDto) {
+    const email = dto.email.trim().toLowerCase();
+    const mobile = dto.mobile ? dto.mobile.trim() : null;
+
+    if (await this.isEmailExist(email)) {
+      throw new BadRequestException(`Email '${email}' is already registered`);
+    }
+
+    if (mobile && (await this.isMobileExist(mobile))) {
+      throw new BadRequestException(`Mobile '${mobile}' is already registered`);
+    }
+
+    // 1. Validate Roles if provided
+    const roleIds =
+      dto.roleIds && dto.roleIds.length > 0
+        ? Array.from(new Set(dto.roleIds))
+        : [];
+    if (roleIds.length > 0) {
+      const foundRoles = await this.prisma.role.findMany({
+        where: { id: { in: roleIds } },
+      });
+      if (foundRoles.length !== roleIds.length) {
+        throw new BadRequestException(
+          'One or more specified role IDs do not exist',
+        );
+      }
+      for (const role of foundRoles) {
+        if (role.status !== RoleStatus.Active) {
+          throw new BadRequestException(`Role '${role.name}' is inactive`);
+        }
+      }
+    }
+
+    // 2. Validate Assignments if provided
+    if (dto.assignments && dto.assignments.length > 0) {
+      const assignmentPairs = new Set<string>();
+
+      for (const a of dto.assignments) {
+        // Prevent duplicate (pointId, designationId) in the same request
+        const key = `${a.pointId}-${a.designationId}`;
+        if (assignmentPairs.has(key)) {
+          throw new BadRequestException(
+            `Duplicate assignment for pointId ${a.pointId} and designationId ${a.designationId} in request`,
+          );
+        }
+        assignmentPairs.add(key);
+
+        // A. Validate Point (HierarchyNode)
+        const node = await this.prisma.hierarchyNode.findUnique({
+          where: { id: a.pointId },
+        });
+        if (!node) {
+          throw new NotFoundException(
+            `Hierarchy node (Point) with ID ${a.pointId} not found`,
+          );
+        }
+        if (node.status !== HierarchyStatus.Active) {
+          throw new BadRequestException(
+            `Hierarchy node '${node.name}' is inactive`,
+          );
+        }
+
+        // B. Validate Designation
+        const designation = await this.prisma.hierarchyDesignation.findUnique({
+          where: { id: a.designationId },
+        });
+        if (!designation) {
+          throw new NotFoundException(
+            `Designation with ID ${a.designationId} not found`,
+          );
+        }
+        if (designation.status !== HierarchyStatus.Active) {
+          throw new BadRequestException(
+            `Designation '${designation.name}' is inactive`,
+          );
+        }
+        if (designation.level !== node.level) {
+          throw new BadRequestException(
+            `Designation '${designation.name}' is at level '${designation.level}', but point '${node.name}' is at level '${node.level}'. Levels must match.`,
+          );
+        }
+
+        // C. Validate Reporting Authority if provided
+        if (a.reportingId) {
+          const reportingUser = await this.prisma.user.findUnique({
+            where: { id: a.reportingId },
+          });
+          if (!reportingUser) {
+            throw new NotFoundException(
+              `Reporting authority user with ID ${a.reportingId} not found`,
+            );
+          }
+          if (reportingUser.status !== UserStatus.Active) {
+            throw new BadRequestException(
+              `Reporting authority user '${reportingUser.firstname} ${reportingUser.lastname}' is not active`,
+            );
+          }
+
+          const eligible = await this.isEligibleReportingAuthority(
+            a.pointId,
+            a.reportingId,
+          );
+          if (!eligible) {
+            throw new BadRequestException(
+              `User '${reportingUser.firstname} ${reportingUser.lastname}' (ID: ${a.reportingId}) is not an eligible reporting authority for point '${node.name}'. Reporting authority must be assigned at the same point or in the upper hierarchy.`,
+            );
+          }
+        }
+      }
+    }
+
+    // 3. Atomic Transaction: User + UserMeta + Roles + Organizational Assignments
+    const { salt, hash } = this.hashPassword(dto.password);
+
+    const createdUserId = await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          firstname: dto.firstname.trim(),
+          lastname: (dto.lastname || '').trim(),
+          email,
+          mobile,
+          dialCode: dto.dialCode || '+91',
+          country: dto.country || 'IN',
+          isVerified: true,
+          status: UserStatus.Active,
+          meta: {
+            create: {
+              passwordHash: hash,
+              passwordSalt: salt,
+            },
+          },
+        },
+      });
+
+      // Assign Roles
+      if (roleIds.length > 0) {
+        await tx.userRole.createMany({
+          data: roleIds.map((roleId) => ({
+            userId: user.id,
+            roleId,
+          })),
+        });
+      }
+
+      // Assign Organizational Designations
+      if (dto.assignments && dto.assignments.length > 0) {
+        for (const a of dto.assignments) {
+          await tx.userHierarchyDesignation.create({
+            data: {
+              userId: user.id,
+              nodeId: a.pointId,
+              designationId: a.designationId,
+              reportingId: a.reportingId ?? null,
+              isActive: true,
+              assignedAt: new Date(),
+            },
+          });
+        }
+      }
+
+      return user.id;
+    });
+
+    // Invalidate access / privilege caches
+    await this.cacheManager.del(
+      getAccessGuardCacheKey({ id: createdUserId, type: UserType.User }),
+    );
+    await this.cacheManager.del(
+      getPrivilegeGuardCacheKey({ id: createdUserId, type: UserType.User }),
+    );
+
+    // Return full onboarded user details
+    return await this.prisma.user.findUnique({
+      where: { id: createdUserId },
+      include: {
+        roles: {
+          include: {
+            role: true,
+          },
+        },
+        designationAssignments: {
+          where: { isActive: true },
+          include: {
+            node: true,
+            designation: true,
+            reportingTo: {
+              select: {
+                id: true,
+                firstname: true,
+                lastname: true,
+                email: true,
+              },
+            },
           },
         },
       },

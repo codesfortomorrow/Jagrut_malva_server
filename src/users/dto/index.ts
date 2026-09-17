@@ -4,3 +4,4 @@ export * from './change-password-request.dto';
 export * from './get-users-request.dto';
 export * from './update-user-profile-request.dto';
 export * from './assign-role-request.dto';
+export * from './create-user-request.dto';

@@ -47,6 +47,14 @@ const ASSIGNMENT_INCLUDE = {
       description: true,
     },
   },
+  reportingTo: {
+    select: {
+      id: true,
+      firstname: true,
+      lastname: true,
+      email: true,
+    },
+  },
 } as const;
 
 @Injectable()
@@ -269,6 +277,7 @@ export class DesignationsService {
           userId: dto.userId,
           nodeId: dto.nodeId,
           designationId: dto.designationId,
+          reportingId: dto.reportingId ?? null,
           isActive: true,
           assignedAt: new Date(),
         },

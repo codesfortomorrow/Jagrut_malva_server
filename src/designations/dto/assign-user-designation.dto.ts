@@ -30,4 +30,15 @@ export class AssignUserDesignationDto {
   @IsInt()
   @Min(1)
   designationId: number;
+
+  @ApiProperty({
+    description: 'ID of the reporting authority user (optional)',
+    example: 10,
+    required: false,
+    nullable: true,
+  })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  reportingId?: number | null;
 }
