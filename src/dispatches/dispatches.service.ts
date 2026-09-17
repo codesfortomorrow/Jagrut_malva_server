@@ -64,9 +64,9 @@ const ALLOWED_DOWNSTREAM_LEVEL: Partial<
   Record<HierarchyLevel, HierarchyLevel>
 > = {
   [HierarchyLevel.Prant]: HierarchyLevel.Jila,
-  [HierarchyLevel.Jila]: HierarchyLevel.KhandNagar,
-  [HierarchyLevel.KhandNagar]: HierarchyLevel.MandalBasti,
-  [HierarchyLevel.MandalBasti]: HierarchyLevel.GramMohalla,
+  [HierarchyLevel.Jila]: HierarchyLevel.Khand,
+  [HierarchyLevel.Khand]: HierarchyLevel.Mandal,
+  [HierarchyLevel.Mandal]: HierarchyLevel.Gram,
 };
 
 @Injectable()
@@ -513,9 +513,9 @@ export class DispatchesService {
     }
 
     // A dispatch can only complete if it has fulfilled its downstream lifecycle:
-    // Either it was Forwarded, or it is at the terminal GramMohalla level and was Received/Discrepancy
+    // Either it was Forwarded, or it is at the terminal Gram level and was Received/Discrepancy
     const isLeafReceived =
-      dispatch.toPoint.level === HierarchyLevel.GramMohalla &&
+      dispatch.toPoint.level === HierarchyLevel.Gram &&
       (dispatch.status === DispatchStatus.Received ||
         dispatch.status === DispatchStatus.Discrepancy);
 

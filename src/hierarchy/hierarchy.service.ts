@@ -16,17 +16,17 @@ import { GetHierarchyNodesDto } from './dto/get-hierarchy-nodes.dto';
 const LEVEL_ORDER: HierarchyLevel[] = [
   HierarchyLevel.Prant,
   HierarchyLevel.Jila,
-  HierarchyLevel.KhandNagar,
-  HierarchyLevel.MandalBasti,
-  HierarchyLevel.GramMohalla,
+  HierarchyLevel.Khand,
+  HierarchyLevel.Mandal,
+  HierarchyLevel.Gram,
 ];
 
 /** Each level's required parent level — Prant has no entry (root) */
 const REQUIRED_PARENT_LEVEL: Partial<Record<HierarchyLevel, HierarchyLevel>> = {
   [HierarchyLevel.Jila]: HierarchyLevel.Prant,
-  [HierarchyLevel.KhandNagar]: HierarchyLevel.Jila,
-  [HierarchyLevel.MandalBasti]: HierarchyLevel.KhandNagar,
-  [HierarchyLevel.GramMohalla]: HierarchyLevel.MandalBasti,
+  [HierarchyLevel.Khand]: HierarchyLevel.Jila,
+  [HierarchyLevel.Mandal]: HierarchyLevel.Khand,
+  [HierarchyLevel.Gram]: HierarchyLevel.Mandal,
 };
 
 @Injectable()
