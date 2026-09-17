@@ -220,7 +220,42 @@ export class HierarchyService {
   }
 
   async remove(id: number) {
-    await this.findOne(id);
+    const node = await this.findOne(id);
+
+    // 1. Strict Leaf Node Check: Cannot delete if it has child nodes
+    const childCount = await this.prisma.hierarchyNode.count({
+      where: { parentId: id },
+    });
+
+    if (childCount > 0) {
+      throw new BadRequestException(
+        `Cannot delete '${node.name}'. It has ${childCount} child node(s). Only leaf nodes can be deleted. Please delete all child nodes first.`,
+      );
+    }
+
+    // 2. Active User / Designation Assignment Check
+    const activeAssignments = await this.prisma.userHierarchyDesignation.count({
+      where: { nodeId: id, isActive: true },
+    });
+
+    if (activeAssignments > 0) {
+      throw new BadRequestException(
+        `Cannot delete '${node.name}' because ${activeAssignments} user(s) are currently assigned to this point. Please unassign all users first.`,
+      );
+    }
+
+    // 3. Dispatch Reference Check
+    const dispatchCount = await this.prisma.dispatchEntry.count({
+      where: {
+        OR: [{ fromPointId: id }, { toPointId: id }],
+      },
+    });
+
+    if (dispatchCount > 0) {
+      throw new BadRequestException(
+        `Cannot delete '${node.name}' because it has ${dispatchCount} dispatch record(s) associated with it.`,
+      );
+    }
 
     try {
       return await this.prisma.hierarchyNode.delete({ where: { id } });
@@ -230,7 +265,7 @@ export class HierarchyService {
         err.code === 'P2003'
       ) {
         throw new BadRequestException(
-          `This node cannot be deleted because it has child nodes. Remove all children first.`,
+          `Cannot delete node '${node.name}' due to existing references.`,
         );
       }
       throw err;

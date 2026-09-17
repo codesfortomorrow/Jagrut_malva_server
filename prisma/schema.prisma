@@ -256,7 +256,7 @@ model HierarchyNode {
   level                  HierarchyLevel
   status                 HierarchyStatus            @default(Active)
   description            String                     @default("")
-  parent                 HierarchyNode?             @relation("HierarchyTree", fields: [parentId], references: [id])
+  parent                 HierarchyNode?             @relation("HierarchyTree", fields: [parentId], references: [id], onDelete: Restrict)
   parentId               Int?                       @map("parent_id")
   children               HierarchyNode[]            @relation("HierarchyTree")
   dispatchesFrom         DispatchEntry[]            @relation("DispatchesFrom")
