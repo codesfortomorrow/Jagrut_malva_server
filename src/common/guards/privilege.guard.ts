@@ -12,7 +12,10 @@ import { Cache } from 'cache-manager';
 import { PrismaService } from '../../prisma';
 import { REQUIRE_PRIVILEGE_KEY } from '../decorators';
 import { AuthenticatedUser, UserType } from '../types';
-import { ADMIN_ROLE_NAME } from '../../roles/privilege-catalog.constant';
+import {
+  ADMIN_ROLE_NAME,
+  PRIVILEGE_CATALOG,
+} from '../../roles/privilege-catalog.constant';
 
 export const getPrivilegeGuardCacheKey = (user: { id: number; type: string }) =>
   `${user.type}-${user.id}-privileges`.toLowerCase();
@@ -42,6 +45,11 @@ export class PrivilegeGuard implements CanActivate {
       throw new UnauthorizedException('Authentication required');
     }
 
+    // Top-level Administrator always has full access to all system privileges
+    if (user.type === UserType.Admin) {
+      return true;
+    }
+
     const privileges = await this.getUserPrivileges(user);
 
     const hasAny = requiredPrivileges.some((key) => privileges.has(key));
@@ -66,15 +74,8 @@ export class PrivilegeGuard implements CanActivate {
     const keys = new Set<string>();
 
     if (user.type === UserType.Admin) {
-      const adminRole = await this.prisma.role.findUnique({
-        where: { name: ADMIN_ROLE_NAME },
-        include: { privileges: { include: { privilege: true } } },
-      });
-
-      if (adminRole) {
-        for (const rp of adminRole.privileges) {
-          if (rp.privilege?.key) keys.add(rp.privilege.key);
-        }
+      for (const p of PRIVILEGE_CATALOG) {
+        keys.add(p.key);
       }
     } else if (user.type === UserType.User) {
       const userRoles = await this.prisma.userRole.findMany({
