@@ -27,7 +27,9 @@ export class CreatePublishIssueRequestDto {
     example: 'Jagrat Malwa Patrika',
   })
   @IsOptional()
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @Transform(({ value }) =>
+    typeof value === 'string' && value.trim() ? value.trim() : undefined,
+  )
   @IsString()
   title?: string;
 
@@ -44,7 +46,11 @@ export class CreatePublishIssueRequestDto {
     description: 'Print copies target (positive integer)',
     example: 10000,
   })
-  @Type(() => Number)
+  @Transform(({ value }) =>
+    value === '' || value === null || value === undefined
+      ? undefined
+      : Number(value),
+  )
   @IsInt({ message: 'totalCopies must be an integer' })
   @Min(1, { message: 'totalCopies must be greater than 0' })
   totalCopies: number;
@@ -54,7 +60,11 @@ export class CreatePublishIssueRequestDto {
     example: 30,
   })
   @IsOptional()
-  @Type(() => Number)
+  @Transform(({ value }) =>
+    value === '' || value === null || value === undefined
+      ? undefined
+      : Number(value),
+  )
   @IsNumber()
   @Min(0, { message: 'pricePerCopy cannot be negative' })
   pricePerCopy?: number;
@@ -64,7 +74,11 @@ export class CreatePublishIssueRequestDto {
     example: 48,
   })
   @IsOptional()
-  @Type(() => Number)
+  @Transform(({ value }) =>
+    value === '' || value === null || value === undefined
+      ? undefined
+      : Number(value),
+  )
   @IsInt({ message: 'pageCount must be an integer' })
   @Min(1, { message: 'pageCount must be greater than 0' })
   pageCount?: number;
@@ -75,6 +89,11 @@ export class CreatePublishIssueRequestDto {
     default: PublishIssueStatus.Draft,
   })
   @IsOptional()
+  @Transform(({ value }) =>
+    value === '' || value === null || value === undefined
+      ? PublishIssueStatus.Draft
+      : value,
+  )
   @IsEnum(PublishIssueStatus, {
     message:
       'status must be a valid PublishIssueStatus (Draft, Published, Archived)',

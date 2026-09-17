@@ -18,7 +18,9 @@ export class UpdatePublishIssueRequestDto {
     example: '26',
   })
   @IsOptional()
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @Transform(({ value }) =>
+    typeof value === 'string' && value.trim() ? value.trim() : undefined,
+  )
   @IsNotEmpty({ message: 'issueNo cannot be empty if provided' })
   @IsString()
   issueNo?: string;
@@ -28,7 +30,9 @@ export class UpdatePublishIssueRequestDto {
     example: 'Jagrat Malwa Patrika',
   })
   @IsOptional()
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @Transform(({ value }) =>
+    typeof value === 'string' && value.trim() ? value.trim() : undefined,
+  )
   @IsString()
   title?: string;
 
@@ -37,7 +41,11 @@ export class UpdatePublishIssueRequestDto {
     example: '2026-10-01T00:00:00.000Z',
   })
   @IsOptional()
-  @Transform(({ value }) => (value ? new Date(value) : value))
+  @Transform(({ value }) =>
+    value === '' || value === null || value === undefined
+      ? undefined
+      : new Date(value),
+  )
   @IsDate({ message: 'publishDate must be a valid date' })
   publishDate?: Date;
 
@@ -46,7 +54,11 @@ export class UpdatePublishIssueRequestDto {
     example: 10000,
   })
   @IsOptional()
-  @Type(() => Number)
+  @Transform(({ value }) =>
+    value === '' || value === null || value === undefined
+      ? undefined
+      : Number(value),
+  )
   @IsInt({ message: 'totalCopies must be an integer' })
   @Min(1, { message: 'totalCopies must be greater than 0' })
   totalCopies?: number;
@@ -56,7 +68,11 @@ export class UpdatePublishIssueRequestDto {
     example: 30,
   })
   @IsOptional()
-  @Type(() => Number)
+  @Transform(({ value }) =>
+    value === '' || value === null || value === undefined
+      ? undefined
+      : Number(value),
+  )
   @IsNumber()
   @Min(0, { message: 'pricePerCopy cannot be negative' })
   pricePerCopy?: number;
@@ -66,7 +82,11 @@ export class UpdatePublishIssueRequestDto {
     example: 48,
   })
   @IsOptional()
-  @Type(() => Number)
+  @Transform(({ value }) =>
+    value === '' || value === null || value === undefined
+      ? undefined
+      : Number(value),
+  )
   @IsInt({ message: 'pageCount must be an integer' })
   @Min(1, { message: 'pageCount must be greater than 0' })
   pageCount?: number;
@@ -77,6 +97,9 @@ export class UpdatePublishIssueRequestDto {
     enum: PublishIssueStatus,
   })
   @IsOptional()
+  @Transform(({ value }) =>
+    value === '' || value === null || value === undefined ? undefined : value,
+  )
   @IsEnum(PublishIssueStatus, {
     message:
       'status must be a valid PublishIssueStatus (Draft, Published, Archived)',
