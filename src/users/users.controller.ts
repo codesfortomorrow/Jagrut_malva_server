@@ -35,6 +35,7 @@ import { UsersService } from './users.service';
 import {
   AssignRoleRequestDto,
   ChangePasswordRequestDto,
+  CreateUserRequestDto,
   GetUsersRequestDto,
   UpdateProfileDetailsRequestDto,
   UpdateProfileImageRequestDto,
@@ -49,6 +50,25 @@ import { UserStatus } from '../generated/prisma/client';
 export class UsersController extends BaseController {
   constructor(private readonly usersService: UsersService) {
     super();
+  }
+
+  @RequirePrivilege('users.manage')
+  @UseGuards(PrivilegeGuard)
+  @Post()
+  @ApiOperation({
+    summary:
+      'Create a new user with optional roles, point, designations, and reporting authority in a single transaction',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'User created and onboarded successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation failed or duplicate email/mobile',
+  })
+  async createUser(@Body() dto: CreateUserRequestDto) {
+    return await this.usersService.createUser(dto);
   }
 
   @Roles(UserType.Admin)

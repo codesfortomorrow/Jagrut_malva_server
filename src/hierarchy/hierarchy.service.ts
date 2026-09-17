@@ -112,6 +112,121 @@ export class HierarchyService {
     return { count: data.length, data };
   }
 
+  async getPointDesignations(nodeId: number) {
+    const node = await this.findOne(nodeId);
+
+    const designations = await this.prisma.hierarchyDesignation.findMany({
+      where: {
+        level: node.level,
+        status: HierarchyStatus.Active,
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    return {
+      nodeId: node.id,
+      nodeName: node.name,
+      level: node.level,
+      total: designations.length,
+      data: designations,
+    };
+  }
+
+  async getReportingAuthorities(nodeId: number) {
+    const node = await this.findOne(nodeId);
+
+    const authorities: Array<{
+      userId: number;
+      name: string;
+      email: string;
+      mobile: string | null;
+      designationId: number;
+      designationName: string;
+      nodeId: number;
+      nodeName: string;
+      nodeLevel: string;
+      isPreferred: boolean;
+    }> = [];
+
+    // 1. Fetch users assigned to parent node (Preferred reporting authorities)
+    if (node.parentId) {
+      const parentAssignments =
+        await this.prisma.userHierarchyDesignation.findMany({
+          where: {
+            nodeId: node.parentId,
+            isActive: true,
+            user: { status: 'Active' },
+          },
+          include: {
+            user: true,
+            designation: true,
+            node: true,
+          },
+          orderBy: { id: 'asc' },
+        });
+
+      for (const a of parentAssignments) {
+        authorities.push({
+          userId: a.user.id,
+          name: `${a.user.firstname} ${a.user.lastname}`.trim(),
+          email: a.user.email,
+          mobile: a.user.mobile,
+          designationId: a.designation.id,
+          designationName: a.designation.name,
+          nodeId: a.node.id,
+          nodeName: a.node.name,
+          nodeLevel: a.node.level,
+          isPreferred: true,
+        });
+      }
+    }
+
+    // 2. Also fetch users assigned to the same node (peer / same level)
+    const sameNodeAssignments =
+      await this.prisma.userHierarchyDesignation.findMany({
+        where: {
+          nodeId: node.id,
+          isActive: true,
+          user: { status: 'Active' },
+        },
+        include: {
+          user: true,
+          designation: true,
+          node: true,
+        },
+        orderBy: { id: 'asc' },
+      });
+
+    for (const a of sameNodeAssignments) {
+      const alreadyExists = authorities.some(
+        (auth) =>
+          auth.userId === a.user.id && auth.designationId === a.designation.id,
+      );
+      if (!alreadyExists) {
+        authorities.push({
+          userId: a.user.id,
+          name: `${a.user.firstname} ${a.user.lastname}`.trim(),
+          email: a.user.email,
+          mobile: a.user.mobile,
+          designationId: a.designation.id,
+          designationName: a.designation.name,
+          nodeId: a.node.id,
+          nodeName: a.node.name,
+          nodeLevel: a.node.level,
+          isPreferred: false,
+        });
+      }
+    }
+
+    return {
+      nodeId: node.id,
+      nodeName: node.name,
+      level: node.level,
+      total: authorities.length,
+      data: authorities,
+    };
+  }
+
   async create(dto: CreateHierarchyNodeDto) {
     const requiredParentLevel = REQUIRED_PARENT_LEVEL[dto.level];
 

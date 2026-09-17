@@ -25,6 +25,7 @@ import {
   VerifyCodeResponse,
 } from '../otp';
 import {
+  HierarchyStatus,
   OtpTransport,
   Prisma,
   Privilege,
@@ -32,6 +33,7 @@ import {
   UserMeta,
   UserStatus,
 } from '../generated/prisma/client';
+import { CreateUserRequestDto } from './dto';
 
 @Injectable()
 export class UsersService {
@@ -223,6 +225,192 @@ export class UsersService {
             passwordHash,
             passwordSalt,
             googleId: data.googleId,
+          },
+        },
+      },
+    });
+  }
+
+  async createUser(dto: CreateUserRequestDto) {
+    const email = dto.email.trim().toLowerCase();
+    const mobile = dto.mobile ? dto.mobile.trim() : null;
+
+    if (await this.isEmailExist(email)) {
+      throw new BadRequestException(`Email '${email}' is already registered`);
+    }
+
+    if (mobile && (await this.isMobileExist(mobile))) {
+      throw new BadRequestException(`Mobile '${mobile}' is already registered`);
+    }
+
+    // 1. Validate Roles if provided
+    const roleIds =
+      dto.roleIds && dto.roleIds.length > 0
+        ? Array.from(new Set(dto.roleIds))
+        : [];
+    if (roleIds.length > 0) {
+      const foundRoles = await this.prisma.role.findMany({
+        where: { id: { in: roleIds } },
+      });
+      if (foundRoles.length !== roleIds.length) {
+        throw new BadRequestException(
+          'One or more specified role IDs do not exist',
+        );
+      }
+    }
+
+    // 2. Validate Point (HierarchyNode) if provided
+    let node: any = null;
+    if (dto.pointId) {
+      node = await this.prisma.hierarchyNode.findUnique({
+        where: { id: dto.pointId },
+      });
+      if (!node) {
+        throw new NotFoundException(
+          `Hierarchy node (Point) with ID ${dto.pointId} not found`,
+        );
+      }
+      if (node.status !== HierarchyStatus.Active) {
+        throw new BadRequestException(
+          `Hierarchy node '${node.name}' is InActive`,
+        );
+      }
+    }
+
+    // 3. Validate Designations if provided
+    const designationIds =
+      dto.designationIds && dto.designationIds.length > 0
+        ? Array.from(new Set(dto.designationIds))
+        : [];
+
+    if (designationIds.length > 0) {
+      if (!node) {
+        throw new BadRequestException(
+          'pointId is required when assigning designations',
+        );
+      }
+
+      const designations = await this.prisma.hierarchyDesignation.findMany({
+        where: { id: { in: designationIds } },
+      });
+
+      if (designations.length !== designationIds.length) {
+        throw new BadRequestException(
+          'One or more specified designation IDs do not exist',
+        );
+      }
+
+      for (const d of designations) {
+        if (d.status !== HierarchyStatus.Active) {
+          throw new BadRequestException(`Designation '${d.name}' is InActive`);
+        }
+        if (d.level !== node.level) {
+          throw new BadRequestException(
+            `Designation '${d.name}' is at level '${d.level}', but point '${node.name}' is at level '${node.level}'. Levels must match.`,
+          );
+        }
+      }
+    }
+
+    // 4. Validate Reporting Authority if provided
+    if (dto.reportingId) {
+      const reportingUser = await this.prisma.user.findUnique({
+        where: { id: dto.reportingId },
+      });
+      if (!reportingUser) {
+        throw new NotFoundException(
+          `Reporting authority user with ID ${dto.reportingId} not found`,
+        );
+      }
+      if (reportingUser.status !== UserStatus.Active) {
+        throw new BadRequestException(
+          `Reporting authority user '${reportingUser.firstname} ${reportingUser.lastname}' is not active`,
+        );
+      }
+    }
+
+    // 5. Atomic Transaction: User + UserMeta + Roles + Designation Assignments
+    const { salt, hash } = this.hashPassword(dto.password);
+
+    const createdUserId = await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          firstname: dto.firstname.trim(),
+          lastname: (dto.lastname || '').trim(),
+          email,
+          mobile,
+          dialCode: dto.dialCode || '+91',
+          country: dto.country || 'IN',
+          isVerified: true,
+          status: UserStatus.Active,
+          meta: {
+            create: {
+              passwordHash: hash,
+              passwordSalt: salt,
+            },
+          },
+        },
+      });
+
+      // Assign Roles
+      if (roleIds.length > 0) {
+        await tx.userRole.createMany({
+          data: roleIds.map((roleId) => ({
+            userId: user.id,
+            roleId,
+          })),
+        });
+      }
+
+      // Assign Designations at Point
+      if (node && designationIds.length > 0) {
+        for (const designationId of designationIds) {
+          await tx.userHierarchyDesignation.create({
+            data: {
+              userId: user.id,
+              nodeId: node.id,
+              designationId,
+              reportingId: dto.reportingId ?? null,
+              isActive: true,
+              assignedAt: new Date(),
+            },
+          });
+        }
+      }
+
+      return user.id;
+    });
+
+    // Invalidate access / privilege caches
+    await this.cacheManager.del(
+      getAccessGuardCacheKey({ id: createdUserId, type: UserType.User }),
+    );
+    await this.cacheManager.del(
+      getPrivilegeGuardCacheKey({ id: createdUserId, type: UserType.User }),
+    );
+
+    // Return full onboarded user details
+    return await this.prisma.user.findUnique({
+      where: { id: createdUserId },
+      include: {
+        roles: {
+          include: {
+            role: true,
+          },
+        },
+        designationAssignments: {
+          where: { isActive: true },
+          include: {
+            node: true,
+            designation: true,
+            reportingTo: {
+              select: {
+                id: true,
+                firstname: true,
+                lastname: true,
+                email: true,
+              },
+            },
           },
         },
       },
