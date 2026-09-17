@@ -38,7 +38,7 @@ import {
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, AccessGuard, PrivilegeGuard)
 @DisableCache()
-@Controller(['hierarchy', 'points'])
+@Controller('hierarchy')
 export class HierarchyController extends BaseController {
   constructor(private readonly hierarchyService: HierarchyService) {
     super();
@@ -62,36 +62,6 @@ export class HierarchyController extends BaseController {
   })
   findAll(@Query() filter: GetHierarchyNodesDto) {
     return this.hierarchyService.findAll(filter);
-  }
-
-  @RequirePrivilege('hierarchy.view')
-  @Get(':id/designations')
-  @ApiOperation({
-    summary:
-      'Get all eligible active designations for a specific hierarchy point (matching node level)',
-  })
-  @ApiParam({
-    name: 'id',
-    type: Number,
-    description: 'Hierarchy Node / Point ID',
-  })
-  getPointDesignations(@Param('id', ParseIntPipe) id: number) {
-    return this.hierarchyService.getPointDesignations(id);
-  }
-
-  @RequirePrivilege('hierarchy.view')
-  @Get(':id/reporting-authorities')
-  @ApiOperation({
-    summary:
-      'Get eligible reporting authorities for a specific hierarchy point (parent node users marked as preferred)',
-  })
-  @ApiParam({
-    name: 'id',
-    type: Number,
-    description: 'Hierarchy Node / Point ID',
-  })
-  getReportingAuthorities(@Param('id', ParseIntPipe) id: number) {
-    return this.hierarchyService.getReportingAuthorities(id);
   }
 
   @RequirePrivilege('hierarchy.view')

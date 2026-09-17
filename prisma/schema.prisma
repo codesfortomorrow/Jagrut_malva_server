@@ -65,8 +65,7 @@ model User {
   settings               UserSetting[]
   roles                  UserRole[]
   receivedDispatches     DispatchEntry[]            @relation("DispatchesReceived")
-  designationAssignments UserHierarchyDesignation[] @relation("UserAssignments")
-  subordinateAssignments UserHierarchyDesignation[] @relation("ReportingManager")
+  designationAssignments UserHierarchyDesignation[]
 
   @@map("user")
 }
@@ -292,14 +291,12 @@ model HierarchyDesignation {
 
 model UserHierarchyDesignation {
   id            Int                  @id @default(autoincrement())
-  user          User                 @relation("UserAssignments", fields: [userId], references: [id], onDelete: Restrict)
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
   userId        Int                  @map("user_id")
   node          HierarchyNode        @relation(fields: [nodeId], references: [id], onDelete: Restrict)
   nodeId        Int                  @map("node_id")
   designation   HierarchyDesignation @relation(fields: [designationId], references: [id], onDelete: Restrict)
   designationId Int                  @map("designation_id")
-  reportingTo   User?                @relation("ReportingManager", fields: [reportingId], references: [id], onDelete: SetNull)
-  reportingId   Int?                 @map("reporting_id")
   assignedAt    DateTime             @default(now()) @map("assigned_at")
   unassignedAt  DateTime?            @map("unassigned_at")
   isActive      Boolean              @default(true) @map("is_active")
@@ -309,7 +306,6 @@ model UserHierarchyDesignation {
   @@index([userId])
   @@index([nodeId])
   @@index([designationId])
-  @@index([reportingId])
   @@index([isActive])
   @@index([nodeId, designationId, isActive])
   @@map("user_hierarchy_designation")
