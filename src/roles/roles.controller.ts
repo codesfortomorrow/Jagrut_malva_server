@@ -43,6 +43,22 @@ export class RolesController extends BaseController {
     super();
   }
 
+  @RequirePrivilege('roles.manage')
+  @Post()
+  @ApiOperation({
+    summary: 'Create a new custom role with privilege keys',
+  })
+  createRole(@Body() dto: CreateRoleRequestDto) {
+    return this.rolesService.createRole(dto);
+  }
+
+  @RequirePrivilege('roles.manage')
+  @Get()
+  @ApiOperation({ summary: 'List roles with optional search and pagination' })
+  listRoles(@Query() query: GetRolesRequestDto) {
+    return this.rolesService.listRoles(query);
+  }
+
   // ── Privilege Catalog ──────────────────────────────────────────────────────
 
   @RequirePrivilege('roles.manage')
@@ -59,14 +75,7 @@ export class RolesController extends BaseController {
     return this.rolesService.getPrivilegeCatalog(search);
   }
 
-  // ── Roles ──────────────────────────────────────────────────────────────────
-
-  @RequirePrivilege('roles.manage')
-  @Get()
-  @ApiOperation({ summary: 'List roles with optional search and pagination' })
-  listRoles(@Query() query: GetRolesRequestDto) {
-    return this.rolesService.listRoles(query);
-  }
+  // ── Role Detail & Operations (By ID) ────────────────────────────────────────
 
   @RequirePrivilege('roles.manage')
   @Get(':id')
@@ -74,15 +83,6 @@ export class RolesController extends BaseController {
   @ApiParam({ name: 'id', type: Number })
   getRole(@Param('id', ParseIntPipe) id: number) {
     return this.rolesService.getRole(id);
-  }
-
-  @RequirePrivilege('roles.manage')
-  @Post()
-  @ApiOperation({
-    summary: 'Create a new custom role with privilege keys',
-  })
-  createRole(@Body() dto: CreateRoleRequestDto) {
-    return this.rolesService.createRole(dto);
   }
 
   @RequirePrivilege('roles.manage')

@@ -44,14 +44,14 @@ export class HierarchyController extends BaseController {
     super();
   }
 
-  @RequirePrivilege('hierarchy.view')
-  @Get('tree')
+  @RequirePrivilege('hierarchy.create')
+  @Post()
   @ApiOperation({
     summary:
-      'Get the full organization hierarchy as a nested tree (Prant → Gram Mohalla)',
+      'Create a new hierarchy node. Strict level rules apply: Prant → Jila → Khand Nagar → Mandal Basti → Gram Mohalla',
   })
-  getTree() {
-    return this.hierarchyService.getTree();
+  create(@Body() dto: CreateHierarchyNodeDto) {
+    return this.hierarchyService.create(dto);
   }
 
   @RequirePrivilege('hierarchy.view')
@@ -62,6 +62,16 @@ export class HierarchyController extends BaseController {
   })
   findAll(@Query() filter: GetHierarchyNodesDto) {
     return this.hierarchyService.findAll(filter);
+  }
+
+  @RequirePrivilege('hierarchy.view')
+  @Get('tree')
+  @ApiOperation({
+    summary:
+      'Get the full organization hierarchy as a nested tree (Prant → Gram Mohalla)',
+  })
+  getTree() {
+    return this.hierarchyService.getTree();
   }
 
   @RequirePrivilege('hierarchy.view')
@@ -78,16 +88,6 @@ export class HierarchyController extends BaseController {
   @ApiParam({ name: 'id', type: Number })
   getChildren(@Param('id', ParseIntPipe) id: number) {
     return this.hierarchyService.getChildren(id);
-  }
-
-  @RequirePrivilege('hierarchy.create')
-  @Post()
-  @ApiOperation({
-    summary:
-      'Create a new hierarchy node. Strict level rules apply: Prant → Jila → Khand Nagar → Mandal Basti → Gram Mohalla',
-  })
-  create(@Body() dto: CreateHierarchyNodeDto) {
-    return this.hierarchyService.create(dto);
   }
 
   @RequirePrivilege('hierarchy.edit')

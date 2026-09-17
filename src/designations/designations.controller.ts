@@ -48,8 +48,32 @@ export class DesignationsController extends BaseController {
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // USER-DESIGNATION ASSIGNMENTS
-  // Defined first to prevent route collisions with master ':id' routes
+  // 1. DESIGNATION MASTER DATA (Core CRUD)
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  @RequirePrivilege('designations.create')
+  @Post()
+  @ApiOperation({
+    summary:
+      'Create a new designation associated with a specific hierarchy level',
+  })
+  create(@Body() dto: CreateDesignationDto) {
+    return this.designationsService.create(dto);
+  }
+
+  @RequirePrivilege('designations.view')
+  @Get()
+  @ApiOperation({
+    summary:
+      'List all designations (paginated) with optional level/status/search filters',
+  })
+  findAll(@Query() filter: GetDesignationsDto) {
+    return this.designationsService.findAll(filter);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // 2. USER-DESIGNATION ASSIGNMENTS
+  // Declared before parameterized ':id' routes to prevent route collisions
   // ─────────────────────────────────────────────────────────────────────────────
 
   @RequirePrivilege('designations.assign')
@@ -104,28 +128,8 @@ export class DesignationsController extends BaseController {
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // DESIGNATION MASTER DATA
+  // 3. DESIGNATION MASTER DETAILS & MODIFICATIONS (By ID)
   // ─────────────────────────────────────────────────────────────────────────────
-
-  @RequirePrivilege('designations.create')
-  @Post()
-  @ApiOperation({
-    summary:
-      'Create a new designation associated with a specific hierarchy level',
-  })
-  create(@Body() dto: CreateDesignationDto) {
-    return this.designationsService.create(dto);
-  }
-
-  @RequirePrivilege('designations.view')
-  @Get()
-  @ApiOperation({
-    summary:
-      'List all designations (paginated) with optional level/status/search filters',
-  })
-  findAll(@Query() filter: GetDesignationsDto) {
-    return this.designationsService.findAll(filter);
-  }
 
   @RequirePrivilege('designations.view')
   @Get(':id')
