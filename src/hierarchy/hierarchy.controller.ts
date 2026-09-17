@@ -21,6 +21,7 @@ import {
 import {
   AccessGuard,
   BaseController,
+  DisableCache,
   JwtAuthGuard,
   PrivilegeGuard,
   RequirePrivilege,
@@ -36,6 +37,7 @@ import {
 @ApiTags('Hierarchy')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, AccessGuard, PrivilegeGuard)
+@DisableCache()
 @Controller('hierarchy')
 export class HierarchyController extends BaseController {
   constructor(private readonly hierarchyService: HierarchyService) {
