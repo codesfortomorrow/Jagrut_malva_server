@@ -140,18 +140,6 @@ export class UsersController extends BaseController {
     return { status: 'success' };
   }
 
-  @ApiParam({ name: 'status', enum: UserStatus })
-  @Roles(UserType.Admin)
-  @UseGuards(RolesGuard)
-  @Post(':userId/:status')
-  async setUserStatus(
-    @Param('userId', ParseIntPipe) userId: number,
-    @Param('status', new ParseEnumPipe(UserStatus)) status: UserStatus,
-  ) {
-    await this.usersService.setStatus(userId, status);
-    return { status: 'success' };
-  }
-
   // GET ROLES ASSIGNED TO A USER
   @RequirePrivilege('roles.view')
   @UseGuards(PrivilegeGuard)
@@ -223,5 +211,17 @@ export class UsersController extends BaseController {
   @ApiResponse({ status: 404, description: 'User not found' })
   getEffectivePrivileges(@Param('userId', ParseIntPipe) userId: number) {
     return this.usersService.getEffectivePrivileges(userId);
+  }
+
+  @ApiParam({ name: 'status', enum: UserStatus })
+  @Roles(UserType.Admin)
+  @UseGuards(RolesGuard)
+  @Post(':userId/:status')
+  async setUserStatus(
+    @Param('userId', ParseIntPipe) userId: number,
+    @Param('status', new ParseEnumPipe(UserStatus)) status: UserStatus,
+  ) {
+    await this.usersService.setStatus(userId, status);
+    return { status: 'success' };
   }
 }
