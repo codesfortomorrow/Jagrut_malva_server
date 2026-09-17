@@ -48,23 +48,24 @@ enum UserStatus {
 }
 
 model User {
-  id                 Int             @id @default(autoincrement())
-  firstname          String
-  lastname           String
-  username           String?         @unique
-  email              String          @unique
-  dialCode           String?         @map("dial_code")
-  mobile             String?         @unique
-  profileImage       String?         @map("profile_image")
-  isVerified         Boolean         @default(false) @map("is_verified")
-  country            String?
-  status             UserStatus      @default(Active)
-  createdAt          DateTime        @default(now()) @map("created_at")
-  updatedAt          DateTime        @updatedAt @map("updated_at")
-  meta               UserMeta?
-  settings           UserSetting[]
-  roles              UserRole[]
-  receivedDispatches DispatchEntry[] @relation("DispatchesReceived")
+  id                     Int                        @id @default(autoincrement())
+  firstname              String
+  lastname               String
+  username               String?                    @unique
+  email                  String                     @unique
+  dialCode               String?                    @map("dial_code")
+  mobile                 String?                    @unique
+  profileImage           String?                    @map("profile_image")
+  isVerified             Boolean                    @default(false) @map("is_verified")
+  country                String?
+  status                 UserStatus                 @default(Active)
+  createdAt              DateTime                   @default(now()) @map("created_at")
+  updatedAt              DateTime                   @updatedAt @map("updated_at")
+  meta                   UserMeta?
+  settings               UserSetting[]
+  roles                  UserRole[]
+  receivedDispatches     DispatchEntry[]            @relation("DispatchesReceived")
+  designationAssignments UserHierarchyDesignation[]
 
   @@map("user")
 }
@@ -250,23 +251,64 @@ enum HierarchyStatus {
 }
 
 model HierarchyNode {
-  id             Int             @id @default(autoincrement())
-  name           String
-  level          HierarchyLevel
-  status         HierarchyStatus @default(Active)
-  description    String          @default("")
-  parent         HierarchyNode?  @relation("HierarchyTree", fields: [parentId], references: [id])
-  parentId       Int?            @map("parent_id")
-  children       HierarchyNode[] @relation("HierarchyTree")
-  dispatchesFrom DispatchEntry[] @relation("DispatchesFrom")
-  dispatchesTo   DispatchEntry[] @relation("DispatchesTo")
-  createdAt      DateTime        @default(now()) @map("created_at")
-  updatedAt      DateTime        @updatedAt @map("updated_at")
+  id                     Int                        @id @default(autoincrement())
+  name                   String
+  level                  HierarchyLevel
+  status                 HierarchyStatus            @default(Active)
+  description            String                     @default("")
+  parent                 HierarchyNode?             @relation("HierarchyTree", fields: [parentId], references: [id])
+  parentId               Int?                       @map("parent_id")
+  children               HierarchyNode[]            @relation("HierarchyTree")
+  dispatchesFrom         DispatchEntry[]            @relation("DispatchesFrom")
+  dispatchesTo           DispatchEntry[]            @relation("DispatchesTo")
+  designationAssignments UserHierarchyDesignation[]
+  createdAt              DateTime                   @default(now()) @map("created_at")
+  updatedAt              DateTime                   @updatedAt @map("updated_at")
 
   @@unique([parentId, name])
   @@index([level])
   @@index([parentId])
   @@map("hierarchy_node")
+}
+
+// ─── Jagrut Malwa: Designation Module ─────────────────────────────────────────
+
+model HierarchyDesignation {
+  id          Int                        @id @default(autoincrement())
+  name        String
+  level       HierarchyLevel
+  status      HierarchyStatus            @default(Active)
+  description String                     @default("")
+  assignments UserHierarchyDesignation[]
+  createdAt   DateTime                   @default(now()) @map("created_at")
+  updatedAt   DateTime                   @updatedAt @map("updated_at")
+
+  @@unique([level, name])
+  @@index([level])
+  @@index([status])
+  @@map("hierarchy_designation")
+}
+
+model UserHierarchyDesignation {
+  id            Int                  @id @default(autoincrement())
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
+  userId        Int                  @map("user_id")
+  node          HierarchyNode        @relation(fields: [nodeId], references: [id], onDelete: Restrict)
+  nodeId        Int                  @map("node_id")
+  designation   HierarchyDesignation @relation(fields: [designationId], references: [id], onDelete: Restrict)
+  designationId Int                  @map("designation_id")
+  assignedAt    DateTime             @default(now()) @map("assigned_at")
+  unassignedAt  DateTime?            @map("unassigned_at")
+  isActive      Boolean              @default(true) @map("is_active")
+  createdAt     DateTime             @default(now()) @map("created_at")
+  updatedAt     DateTime             @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([nodeId])
+  @@index([designationId])
+  @@index([isActive])
+  @@index([nodeId, designationId, isActive])
+  @@map("user_hierarchy_designation")
 }
 
 // ─── Jagrut Malwa: Publish Issue Module ───────────────────────────────────────

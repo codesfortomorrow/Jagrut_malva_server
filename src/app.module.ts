@@ -17,6 +17,7 @@ import { RolesModule } from './roles';
 import { HierarchyModule } from './hierarchy';
 import { PublishIssuesModule } from './publish-issues';
 import { DispatchesModule } from './dispatches';
+import { DesignationsModule } from './designations';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { DispatchesModule } from './dispatches';
     HierarchyModule,
     PublishIssuesModule,
     DispatchesModule,
+    DesignationsModule,
   ],
   controllers: [AppController],
   providers: [

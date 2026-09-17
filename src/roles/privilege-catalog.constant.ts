@@ -229,6 +229,33 @@ const MODULE_DEFINITIONS: ModuleDefinition[] = [
       },
     ],
   },
+  {
+    module: 'designations',
+    label: 'Designation & Responsibility Management',
+    permissions: [
+      {
+        action: 'view',
+        description: 'View designations and user-designation assignments',
+      },
+      {
+        action: 'create',
+        description: 'Create designations',
+      },
+      {
+        action: 'edit',
+        description: 'Update designations and toggle status',
+      },
+      {
+        action: 'delete',
+        description: 'Delete unused designations',
+      },
+      {
+        action: 'assign',
+        description:
+          'Assign, reassign, or unassign designations to users at hierarchy nodes',
+      },
+    ],
+  },
 ];
 
 // Runtime check to prevent accidental duplicate module names
