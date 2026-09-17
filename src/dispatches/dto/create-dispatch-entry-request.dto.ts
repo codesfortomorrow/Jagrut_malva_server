@@ -22,7 +22,7 @@ export class CreateDispatchEntryRequestDto {
 
   @ApiPropertyOptional({
     description:
-      'Source hierarchy node ID (omit or pass null for Central Publisher dispatch to root Sangh)',
+      'Source hierarchy node ID (omit or pass null for Central Publisher dispatch to root Prant)',
     example: 1,
   })
   @IsOptional()

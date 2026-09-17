@@ -14,16 +14,16 @@ import { UpdateHierarchyNodeDto } from './dto/update-hierarchy-node.dto';
 import { GetHierarchyNodesDto } from './dto/get-hierarchy-nodes.dto';
 
 const LEVEL_ORDER: HierarchyLevel[] = [
-  HierarchyLevel.Sangh,
+  HierarchyLevel.Prant,
   HierarchyLevel.Jila,
   HierarchyLevel.KhandNagar,
   HierarchyLevel.MandalBasti,
   HierarchyLevel.GramMohalla,
 ];
 
-/** Each level's required parent level — Sangh has no entry (root) */
+/** Each level's required parent level — Prant has no entry (root) */
 const REQUIRED_PARENT_LEVEL: Partial<Record<HierarchyLevel, HierarchyLevel>> = {
-  [HierarchyLevel.Jila]: HierarchyLevel.Sangh,
+  [HierarchyLevel.Jila]: HierarchyLevel.Prant,
   [HierarchyLevel.KhandNagar]: HierarchyLevel.Jila,
   [HierarchyLevel.MandalBasti]: HierarchyLevel.KhandNagar,
   [HierarchyLevel.GramMohalla]: HierarchyLevel.MandalBasti,
@@ -116,18 +116,18 @@ export class HierarchyService {
     const requiredParentLevel = REQUIRED_PARENT_LEVEL[dto.level];
 
     if (!requiredParentLevel) {
-      // Sangh is root — no parent allowed, only one can exist
+      // Prant is root — no parent allowed, only one can exist
       if (dto.parentId) {
         throw new BadRequestException(
-          `Sangh is the root level and cannot have a parent node`,
+          `Prant is the root level and cannot have a parent node`,
         );
       }
       const existing = await this.prisma.hierarchyNode.count({
-        where: { level: HierarchyLevel.Sangh },
+        where: { level: HierarchyLevel.Prant },
       });
       if (existing > 0) {
         throw new BadRequestException(
-          `A Sangh (root) node already exists. Only one root is allowed.`,
+          `A Prant (root) node already exists. Only one root is allowed.`,
         );
       }
     } else {

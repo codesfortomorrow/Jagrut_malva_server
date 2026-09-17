@@ -63,7 +63,7 @@ const DISPATCH_INCLUDE = {
 const ALLOWED_DOWNSTREAM_LEVEL: Partial<
   Record<HierarchyLevel, HierarchyLevel>
 > = {
-  [HierarchyLevel.Sangh]: HierarchyLevel.Jila,
+  [HierarchyLevel.Prant]: HierarchyLevel.Jila,
   [HierarchyLevel.Jila]: HierarchyLevel.KhandNagar,
   [HierarchyLevel.KhandNagar]: HierarchyLevel.MandalBasti,
   [HierarchyLevel.MandalBasti]: HierarchyLevel.GramMohalla,
@@ -203,10 +203,10 @@ export class DispatchesService {
 
     // 3. Hierarchy & Source Validation
     if (!dto.fromPointId) {
-      // Central Publisher dispatch: must go to root Sangh node
-      if (toPoint.level !== HierarchyLevel.Sangh) {
+      // Central Publisher dispatch: must go to root Prant node
+      if (toPoint.level !== HierarchyLevel.Prant) {
         throw new BadRequestException(
-          `Central publisher can only dispatch to root '${HierarchyLevel.Sangh}' level. Destination '${toPoint.name}' is '${toPoint.level}'.`,
+          `Central publisher can only dispatch to root '${HierarchyLevel.Prant}' level. Destination '${toPoint.name}' is '${toPoint.level}'.`,
         );
       }
 

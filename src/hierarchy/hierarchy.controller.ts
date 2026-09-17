@@ -46,7 +46,7 @@ export class HierarchyController extends BaseController {
   @Get('tree')
   @ApiOperation({
     summary:
-      'Get the full organization hierarchy as a nested tree (Sangh → Gram Mohalla)',
+      'Get the full organization hierarchy as a nested tree (Prant → Gram Mohalla)',
   })
   getTree() {
     return this.hierarchyService.getTree();
@@ -82,7 +82,7 @@ export class HierarchyController extends BaseController {
   @Post()
   @ApiOperation({
     summary:
-      'Create a new hierarchy node. Strict level rules apply: Sangh → Jila → Khand Nagar → Mandal Basti → Gram Mohalla',
+      'Create a new hierarchy node. Strict level rules apply: Prant → Jila → Khand Nagar → Mandal Basti → Gram Mohalla',
   })
   create(@Body() dto: CreateHierarchyNodeDto) {
     return this.hierarchyService.create(dto);

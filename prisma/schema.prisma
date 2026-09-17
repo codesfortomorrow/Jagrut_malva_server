@@ -234,7 +234,7 @@ model UserRole {
 // ─── Jagrut Malwa: Organization Hierarchy ────────────────────────────────────
 
 enum HierarchyLevel {
-  Sangh       @map("sangh")
+  Prant       @map("prant")
   Jila        @map("jila")
   KhandNagar  @map("khand_nagar")
   MandalBasti @map("mandal_basti")

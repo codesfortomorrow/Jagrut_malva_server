@@ -32,7 +32,7 @@ export class CreateHierarchyNodeDto {
 
   @ApiPropertyOptional({
     description:
-      'Parent node ID. Required for all levels except Sangh (root). Sangh must have no parent.',
+      'Parent node ID. Required for all levels except Prant (root). Prant must have no parent.',
     example: 1,
   })
   @IsOptional()
