@@ -21,6 +21,7 @@ import {
 import {
   AccessGuard,
   BaseController,
+  DisableCache,
   JwtAuthGuard,
   PrivilegeGuard,
   RequirePrivilege,
@@ -39,6 +40,7 @@ import {
 @ApiTags('Designations')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, AccessGuard, PrivilegeGuard)
+@DisableCache()
 @Controller('designations')
 export class DesignationsController extends BaseController {
   constructor(private readonly designationsService: DesignationsService) {
@@ -78,27 +80,6 @@ export class DesignationsController extends BaseController {
   })
   reassign(@Body() dto: ReassignUserDesignationDto) {
     return this.designationsService.reassign(dto);
-  }
-
-  @RequirePrivilege('designations.view')
-  @Get('assignments/user/:userId/active')
-  @ApiOperation({
-    summary: 'Get all currently active designation assignments for a user',
-  })
-  @ApiParam({ name: 'userId', type: Number })
-  getUserActiveAssignments(@Param('userId', ParseIntPipe) userId: number) {
-    return this.designationsService.getUserActiveAssignments(userId);
-  }
-
-  @RequirePrivilege('designations.view')
-  @Get('assignments/node/:nodeId/active')
-  @ApiOperation({
-    summary:
-      'Get all currently active responsible users/designations for a hierarchy node',
-  })
-  @ApiParam({ name: 'nodeId', type: Number })
-  getNodeActiveAssignments(@Param('nodeId', ParseIntPipe) nodeId: number) {
-    return this.designationsService.getNodeActiveAssignments(nodeId);
   }
 
   @RequirePrivilege('designations.view')

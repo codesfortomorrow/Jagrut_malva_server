@@ -1,6 +1,6 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, Min } from 'class-validator';
+import { IsInt, IsOptional, Min } from 'class-validator';
 
 export class AssignUserDesignationDto {
   @ApiProperty({
@@ -31,12 +31,12 @@ export class AssignUserDesignationDto {
   @Min(1)
   designationId: number;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'ID of the reporting authority user (optional)',
     example: 10,
-    required: false,
     nullable: true,
   })
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
