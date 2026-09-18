@@ -7,6 +7,7 @@ import {
   Prisma,
   HierarchyLevel,
   HierarchyStatus,
+  UserStatus,
 } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateHierarchyNodeDto } from './dto/create-hierarchy-node.dto';
@@ -229,7 +230,7 @@ export class HierarchyService {
 
     if (childCount > 0) {
       throw new BadRequestException(
-        `Cannot delete '${node.name}'. It has ${childCount} child node(s). Only leaf nodes can be deleted. Please delete all child nodes first.`,
+        `Cannot delete '${node.name}'. It has ${childCount} child node(s). Only leaf nodes without children can be deleted. Please delete all child nodes first.`,
       );
     }
 
@@ -270,5 +271,97 @@ export class HierarchyService {
       }
       throw err;
     }
+  }
+
+  async getReportingCandidates(id: number) {
+    const node = await this.findOne(id);
+
+    // 1. Collect upper hierarchy ancestor IDs (immediate parent up to root)
+    const ancestorNodeIds: number[] = [];
+    let currentParentId: number | null = node.parentId;
+    while (currentParentId !== null) {
+      ancestorNodeIds.push(currentParentId);
+      const parentNode: { parentId: number | null } | null =
+        await this.prisma.hierarchyNode.findUnique({
+          where: { id: currentParentId },
+          select: { parentId: true },
+        });
+      currentParentId = parentNode?.parentId ?? null;
+    }
+
+    // 2. Fetch active officers from upper nodes and current point
+    const eligibleNodeIds = [node.id, ...ancestorNodeIds];
+
+    const activeAssignments =
+      await this.prisma.userHierarchyDesignation.findMany({
+        where: {
+          nodeId: { in: eligibleNodeIds },
+          isActive: true,
+          user: { status: UserStatus.Active },
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstname: true,
+              lastname: true,
+              email: true,
+              mobile: true,
+              username: true,
+              profileImage: true,
+            },
+          },
+          node: {
+            select: {
+              id: true,
+              name: true,
+              level: true,
+            },
+          },
+          designation: {
+            select: {
+              id: true,
+              name: true,
+              level: true,
+            },
+          },
+        },
+        orderBy: [{ assignedAt: 'asc' }],
+      });
+
+    // 3. Map candidates with designation and node details
+    const candidates = activeAssignments.map((a) => ({
+      userId: a.user.id,
+      name: `${a.user.firstname} ${a.user.lastname}`.trim(),
+      email: a.user.email,
+      mobile: a.user.mobile,
+      nodeId: a.node.id,
+      nodeName: a.node.name,
+      nodeLevel: a.node.level,
+      designationId: a.designation.id,
+      designationName: a.designation.name,
+      isImmediateParent: node.parentId !== null && a.node.id === node.parentId,
+    }));
+
+    // 4. Auto-select preferred reporting authority (immediate parent head first)
+    let preferred = candidates.find((c) => c.isImmediateParent);
+    if (!preferred && ancestorNodeIds.length > 0) {
+      for (const ancestorId of ancestorNodeIds) {
+        preferred = candidates.find((c) => c.nodeId === ancestorId);
+        if (preferred) break;
+      }
+    }
+    if (!preferred && candidates.length > 0) {
+      preferred = candidates[0];
+    }
+
+    return {
+      nodeId: node.id,
+      nodeName: node.name,
+      nodeLevel: node.level,
+      parentId: node.parentId,
+      preferredReportingAuthority: preferred ?? null,
+      allReportingAuthorities: candidates,
+    };
   }
 }

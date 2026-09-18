@@ -90,6 +90,16 @@ export class HierarchyController extends BaseController {
     return this.hierarchyService.getChildren(id);
   }
 
+  @RequirePrivilege('hierarchy.view')
+  @Get(':id/reporting-candidates')
+  @ApiOperation({
+    summary: 'Get reporting authority candidates for a hierarchy node',
+  })
+  @ApiParam({ name: 'id', type: Number })
+  getReportingCandidates(@Param('id', ParseIntPipe) id: number) {
+    return this.hierarchyService.getReportingCandidates(id);
+  }
+
   @RequirePrivilege('hierarchy.edit')
   @Put(':id')
   @ApiOperation({
