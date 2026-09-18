@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { Cache } from 'cache-manager';
-import { Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { adminConfigFactory } from '@Config';
@@ -193,6 +193,12 @@ export class AdminService {
     oldPassword: string,
     newPassword: string,
   ): Promise<Admin> {
+    if (oldPassword === newPassword) {
+      throw new BadRequestException(
+        'New password must be different from the old password',
+      );
+    }
+
     const admin = await this.getById(adminId);
     const adminMeta = await this.getMetaById(admin.id);
 

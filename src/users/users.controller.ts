@@ -88,6 +88,19 @@ export class UsersController extends BaseController {
     return await this.usersService.getProfile(ctx.user.id);
   }
 
+  @Get('me/privileges')
+  @ApiOperation({
+    summary: 'Get effective privileges of the currently authenticated user',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Deduplicated list of effective privileges for logged-in user',
+  })
+  async getMyPrivileges(@Req() req: AuthenticatedRequest) {
+    const ctx = this.getContext(req);
+    return await this.usersService.getMyPrivileges(ctx.user);
+  }
+
   @Patch('me')
   async updateProfileDetails(
     @Req() req: AuthenticatedRequest,

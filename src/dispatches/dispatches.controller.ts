@@ -46,8 +46,12 @@ export class DispatchesController extends BaseController {
   @RequirePrivilege('dispatches.create')
   @Post()
   @ApiOperation({ summary: 'Create a new dispatch entry' })
-  create(@Body() dto: CreateDispatchEntryRequestDto) {
-    return this.dispatchesService.create(dto);
+  create(
+    @Body() dto: CreateDispatchEntryRequestDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const ctx = this.getContext(req);
+    return this.dispatchesService.create(dto, ctx.user?.id);
   }
 
   @RequirePrivilege('dispatches.view')
@@ -55,6 +59,16 @@ export class DispatchesController extends BaseController {
   @ApiOperation({ summary: 'List dispatches with pagination and filters' })
   findAll(@Query() query: GetDispatchesRequestDto) {
     return this.dispatchesService.findAll(query);
+  }
+
+  @RequirePrivilege('dispatches.view')
+  @Get('my-context')
+  @ApiOperation({
+    summary: 'Get dispatch context and allowed destination points',
+  })
+  getMyContext(@Req() req: AuthenticatedRequest) {
+    const ctx = this.getContext(req);
+    return this.dispatchesService.getMyDispatchContext(ctx.user);
   }
 
   // NOTE: Must be defined before ':id' route to avoid route collision
@@ -118,8 +132,10 @@ export class DispatchesController extends BaseController {
   forward(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: ForwardDispatchRequestDto,
+    @Req() req: AuthenticatedRequest,
   ) {
-    return this.dispatchesService.forward(id, dto);
+    const ctx = this.getContext(req);
+    return this.dispatchesService.forward(id, dto, ctx.user?.id);
   }
 
   @RequirePrivilege('dispatches.cancel')

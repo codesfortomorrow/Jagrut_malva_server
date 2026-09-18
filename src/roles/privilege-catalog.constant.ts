@@ -256,6 +256,28 @@ const MODULE_DEFINITIONS: ModuleDefinition[] = [
       },
     ],
   },
+  {
+    module: 'consumers',
+    label: 'Consumer & Subscriber Management',
+    permissions: [
+      {
+        action: 'view',
+        description: 'View consumer list and registration details',
+      },
+      {
+        action: 'create',
+        description: 'Register new consumers through the registration form',
+      },
+      {
+        action: 'edit',
+        description: 'Edit consumer personal, contact, and address details',
+      },
+      {
+        action: 'status',
+        description: 'Activate or deactivate consumer records',
+      },
+    ],
+  },
 ];
 
 // Runtime check to prevent accidental duplicate module names

@@ -65,8 +65,11 @@ model User {
   settings               UserSetting[]
   roles                  UserRole[]
   receivedDispatches     DispatchEntry[]            @relation("DispatchesReceived")
+  createdDispatches      DispatchEntry[]            @relation("DispatchesCreated")
   designationAssignments UserHierarchyDesignation[] @relation("UserAssignments")
   subordinateAssignments UserHierarchyDesignation[] @relation("ReportingManager")
+  publishedIssues        PublishIssue[]             @relation("PublishedIssues")
+  registeredConsumers    Consumer[]                 @relation("RegisteredConsumers")
 
   @@map("user")
 }
@@ -263,6 +266,10 @@ model HierarchyNode {
   dispatchesFrom         DispatchEntry[]            @relation("DispatchesFrom")
   dispatchesTo           DispatchEntry[]            @relation("DispatchesTo")
   designationAssignments UserHierarchyDesignation[]
+  consumersJila          Consumer[]                 @relation("ConsumerJila")
+  consumersKhand         Consumer[]                 @relation("ConsumerKhand")
+  consumersMandal        Consumer[]                 @relation("ConsumerMandal")
+  consumersGram          Consumer[]                 @relation("ConsumerGram")
   createdAt              DateTime                   @default(now()) @map("created_at")
   updatedAt              DateTime                   @updatedAt @map("updated_at")
 
@@ -326,21 +333,22 @@ enum PublishIssueStatus {
 }
 
 model PublishIssue {
-  id           Int                @id @default(autoincrement())
-  issueNo      String             @unique @map("issue_no")
-  title        String             @default("")
-  publishDate  DateTime           @map("publish_date")
-  totalCopies  Int                @map("total_copies")
-  pricePerCopy Float?             @map("price_per_copy")
-  pageCount    Int?               @map("page_count")
-  filePath     String?            @map("file_path")
-  status       PublishIssueStatus @default(Draft)
-  dispatches   DispatchEntry[]
-  createdAt    DateTime           @default(now()) @map("created_at")
-  updatedAt    DateTime           @updatedAt @map("updated_at")
+  id            Int                @id @default(autoincrement())
+  issueNo       String             @unique @map("issue_no")
+  title         String             @default("")
+  publishDate   DateTime           @map("publish_date")
+  totalCopies   Int                @map("total_copies")
+  filePath      String?            @map("file_path")
+  status        PublishIssueStatus @default(Draft)
+  publishedBy   User?              @relation("PublishedIssues", fields: [publishedById], references: [id], onDelete: SetNull)
+  publishedById Int?               @map("published_by_id")
+  dispatches    DispatchEntry[]
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
 
   @@index([status])
   @@index([publishDate])
+  @@index([publishedById])
   @@map("publish_issue")
 }
 
@@ -375,6 +383,8 @@ model DispatchEntry {
   receivedAt       DateTime?      @map("received_at")
   receivedBy       User?          @relation("DispatchesReceived", fields: [receivedById], references: [id], onDelete: Restrict)
   receivedById     Int?           @map("received_by_id")
+  dispatchedBy     User?          @relation("DispatchesCreated", fields: [dispatchedById], references: [id], onDelete: Restrict)
+  dispatchedById   Int?           @map("dispatched_by_id")
   createdAt        DateTime       @default(now()) @map("created_at")
   updatedAt        DateTime       @updatedAt @map("updated_at")
 
@@ -384,5 +394,52 @@ model DispatchEntry {
   @@index([status])
   @@index([dispatchDate])
   @@index([receivedById])
+  @@index([dispatchedById])
   @@map("dispatch_entry")
+}
+
+// ─── Jagrut Malwa: Consumer Module ───────────────────────────────────────────
+
+enum ConsumerStatus {
+  Active   @map("active")
+  InActive @map("inactive")
+
+  @@map("consumer_status")
+}
+
+model Consumer {
+  id               Int            @id @default(autoincrement())
+  fullName         String         @map("full_name")
+  fatherName       String         @map("father_name")
+  whatsappMobile   String         @unique @map("whatsapp_mobile")
+  additionalMobile String?        @map("additional_mobile")
+  fullAddress      String         @map("full_address")
+  postalGram       String?        @map("postal_gram")
+  post             String?        @map("post")
+  tehsil           String?        @map("tehsil")
+  pincode          String?        @map("pincode")
+  jila             HierarchyNode  @relation("ConsumerJila", fields: [jilaId], references: [id], onDelete: Restrict)
+  jilaId           Int            @map("jila_id")
+  khand            HierarchyNode  @relation("ConsumerKhand", fields: [khandId], references: [id], onDelete: Restrict)
+  khandId          Int            @map("khand_id")
+  mandal           HierarchyNode  @relation("ConsumerMandal", fields: [mandalId], references: [id], onDelete: Restrict)
+  mandalId         Int            @map("mandal_id")
+  gram             HierarchyNode  @relation("ConsumerGram", fields: [gramId], references: [id], onDelete: Restrict)
+  gramId           Int            @map("gram_id")
+  registrarName    String         @map("registrar_name")
+  registrarMobile  String         @map("registrar_mobile")
+  registeredBy     User?          @relation("RegisteredConsumers", fields: [registeredById], references: [id], onDelete: SetNull)
+  registeredById   Int?           @map("registered_by_id")
+  status           ConsumerStatus @default(Active)
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+
+  @@index([whatsappMobile])
+  @@index([jilaId])
+  @@index([khandId])
+  @@index([mandalId])
+  @@index([gramId])
+  @@index([registeredById])
+  @@index([status])
+  @@map("consumer")
 }

@@ -7,6 +7,7 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -22,6 +23,7 @@ import {
 } from '@nestjs/swagger';
 import {
   AccessGuard,
+  AuthenticatedRequest,
   BaseController,
   File,
   JwtAuthGuard,
@@ -55,7 +57,7 @@ export class PublishIssuesController extends BaseController {
       type: 'object',
       required: ['issueNo', 'publishDate', 'totalCopies'],
       properties: {
-        issueNo: { type: 'string', example: '26' },
+        issueNo: { type: 'string', example: 'JM-2026-01' },
         title: {
           type: 'string',
           example: 'Jagrat Malwa Patrika',
@@ -66,8 +68,6 @@ export class PublishIssuesController extends BaseController {
           example: '2026-10-01T00:00:00.000Z',
         },
         totalCopies: { type: 'integer', example: 10000 },
-        pricePerCopy: { type: 'number', example: 30 },
-        pageCount: { type: 'integer', example: 48 },
         status: {
           type: 'string',
           enum: Object.values(PublishIssueStatus),
@@ -80,8 +80,10 @@ export class PublishIssuesController extends BaseController {
   create(
     @Body() dto: CreatePublishIssueRequestDto,
     @UploadedFile() file?: File,
+    @Req() req?: AuthenticatedRequest,
   ) {
-    return this.publishIssuesService.create(dto, file);
+    const userId = req ? this.getContext(req).user?.id : undefined;
+    return this.publishIssuesService.create(dto, file, userId);
   }
 
   @RequirePrivilege('publish_issues.view')
@@ -111,7 +113,7 @@ export class PublishIssuesController extends BaseController {
     schema: {
       type: 'object',
       properties: {
-        issueNo: { type: 'string', example: '26' },
+        issueNo: { type: 'string', example: 'JM-2026-01' },
         title: {
           type: 'string',
           example: 'Jagrat Malwa Patrika',
@@ -122,8 +124,6 @@ export class PublishIssuesController extends BaseController {
           example: '2026-10-01T00:00:00.000Z',
         },
         totalCopies: { type: 'integer', example: 10000 },
-        pricePerCopy: { type: 'number', example: 30 },
-        pageCount: { type: 'integer', example: 48 },
         status: { type: 'string', enum: Object.values(PublishIssueStatus) },
         file: { type: 'string', format: 'binary' },
       },
@@ -133,7 +133,9 @@ export class PublishIssuesController extends BaseController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdatePublishIssueRequestDto,
     @UploadedFile() file?: File,
+    @Req() req?: AuthenticatedRequest,
   ) {
-    return this.publishIssuesService.update(id, dto, file);
+    const userId = req ? this.getContext(req).user?.id : undefined;
+    return this.publishIssuesService.update(id, dto, file, userId);
   }
 }

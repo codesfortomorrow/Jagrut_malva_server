@@ -3,11 +3,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { AuthenticatedUser, UserType } from '@Common';
 import { PrismaService } from '../prisma';
 import {
   DispatchEntry,
   DispatchStatus,
   HierarchyLevel,
+  HierarchyStatus,
   Prisma,
   PublishIssueStatus,
 } from '../generated/prisma/client';
@@ -58,7 +60,24 @@ const DISPATCH_INCLUDE = {
       username: true,
     },
   },
+  dispatchedBy: {
+    select: {
+      id: true,
+      firstname: true,
+      lastname: true,
+      email: true,
+      username: true,
+    },
+  },
 } as const;
+
+const HIERARCHY_LEVEL_RANK: Record<HierarchyLevel, number> = {
+  [HierarchyLevel.Prant]: 1,
+  [HierarchyLevel.Jila]: 2,
+  [HierarchyLevel.Khand]: 3,
+  [HierarchyLevel.Mandal]: 4,
+  [HierarchyLevel.Gram]: 5,
+};
 
 const ALLOWED_DOWNSTREAM_LEVEL: Partial<
   Record<HierarchyLevel, HierarchyLevel>
@@ -166,7 +185,7 @@ export class DispatchesService {
     };
   }
 
-  async create(dto: CreateDispatchEntryRequestDto) {
+  async create(dto: CreateDispatchEntryRequestDto, userId?: number) {
     if (dto.quantity <= 0) {
       throw new BadRequestException(
         'quantity must be a positive integer greater than 0',
@@ -203,7 +222,7 @@ export class DispatchesService {
 
     // 3. Hierarchy & Source Validation
     if (!dto.fromPointId) {
-      // Central Publisher dispatch: must go to root Prant node
+      // Central Publisher dispatch: can dispatch downstream to root Prant node
       if (toPoint.level !== HierarchyLevel.Prant) {
         throw new BadRequestException(
           `Central publisher can only dispatch to root '${HierarchyLevel.Prant}' level. Destination '${toPoint.name}' is '${toPoint.level}'.`,
@@ -247,23 +266,33 @@ export class DispatchesService {
         );
       }
 
-      const expectedNextLevel = ALLOWED_DOWNSTREAM_LEVEL[fromPoint.level];
-      if (!expectedNextLevel) {
+      if (fromPoint.level === HierarchyLevel.Gram) {
         throw new BadRequestException(
           `Level '${fromPoint.level}' is a terminal leaf node and cannot dispatch copies further downstream`,
         );
       }
 
-      if (toPoint.level !== expectedNextLevel) {
+      // Downstream direction validation
+      if (
+        HIERARCHY_LEVEL_RANK[toPoint.level] <=
+        HIERARCHY_LEVEL_RANK[fromPoint.level]
+      ) {
         throw new BadRequestException(
-          `Invalid hierarchy jump: '${fromPoint.level}' can only dispatch to '${expectedNextLevel}'. Got '${toPoint.level}'.`,
+          `Invalid hierarchy direction: Dispatches can only move downstream to lower levels ('${fromPoint.level}' cannot dispatch to '${toPoint.level}').`,
         );
       }
 
+      // Flexible Branch / Ancestry Validation (allows direct downstream branch jumps)
       if (toPoint.parentId !== fromPoint.id) {
-        throw new BadRequestException(
-          `Destination point '${toPoint.name}' is not a direct child of source point '${fromPoint.name}'`,
+        const isDescendant = await this.isDescendantOf(
+          toPoint.id,
+          fromPoint.id,
         );
+        if (!isDescendant) {
+          throw new BadRequestException(
+            `Destination point '${toPoint.name}' is not within the geographic branch of source point '${fromPoint.name}'`,
+          );
+        }
       }
 
       // 4. Upstream Receipt Rule Validation
@@ -302,6 +331,7 @@ export class DispatchesService {
         dispatchDate: dto.dispatchDate ?? new Date(),
         trackingLink: dto.trackingLink ?? null,
         status: DispatchStatus.Dispatched,
+        dispatchedById: userId ?? null,
       },
       include: DISPATCH_INCLUDE,
     });
@@ -367,7 +397,7 @@ export class DispatchesService {
     });
   }
 
-  async forward(id: number, dto: ForwardDispatchRequestDto) {
+  async forward(id: number, dto: ForwardDispatchRequestDto, userId?: number) {
     if (dto.quantity <= 0) {
       throw new BadRequestException(
         'quantity must be a positive integer greater than 0',
@@ -405,23 +435,33 @@ export class DispatchesService {
       );
     }
 
-    const expectedNextLevel = ALLOWED_DOWNSTREAM_LEVEL[sourcePoint.level];
-    if (!expectedNextLevel) {
+    if (sourcePoint.level === HierarchyLevel.Gram) {
       throw new BadRequestException(
         `Level '${sourcePoint.level}' is a terminal leaf node and cannot forward copies further downstream`,
       );
     }
 
-    if (toPoint.level !== expectedNextLevel) {
+    // Downstream direction validation
+    if (
+      HIERARCHY_LEVEL_RANK[toPoint.level] <=
+      HIERARCHY_LEVEL_RANK[sourcePoint.level]
+    ) {
       throw new BadRequestException(
-        `Invalid hierarchy jump: '${sourcePoint.level}' can only forward to '${expectedNextLevel}'. Destination is '${toPoint.level}'.`,
+        `Invalid hierarchy direction: Dispatches can only be forwarded downstream to lower levels ('${sourcePoint.level}' cannot forward to '${toPoint.level}').`,
       );
     }
 
+    // Flexible Branch / Ancestry Validation (allows direct downstream branch jumps)
     if (toPoint.parentId !== sourcePoint.id) {
-      throw new BadRequestException(
-        `Destination '${toPoint.name}' is not a direct child of source point '${sourcePoint.name}'`,
+      const isDescendant = await this.isDescendantOf(
+        toPoint.id,
+        sourcePoint.id,
       );
+      if (!isDescendant) {
+        throw new BadRequestException(
+          `Destination '${toPoint.name}' is not within the geographic branch of source point '${sourcePoint.name}'`,
+        );
+      }
     }
 
     // Verify quantity availability at sourcePoint
@@ -460,6 +500,7 @@ export class DispatchesService {
           dispatchDate: dto.dispatchDate ?? new Date(),
           trackingLink: dto.trackingLink ?? null,
           status: DispatchStatus.Dispatched,
+          dispatchedById: userId ?? null,
         },
         include: DISPATCH_INCLUDE,
       });
@@ -618,5 +659,146 @@ export class DispatchesService {
         `Requested quantity (${requestedQuantity}) exceeds available received copies (${availableQuantity}) at '${nodeName}'. Total received: ${totalReceivedAtNode}, already dispatched: ${totalDispatchedDownstream}.`,
       );
     }
+  }
+
+  // Check if a node is within the downstream branch of an ancestor
+  private async isDescendantOf(
+    childNodeId: number,
+    targetAncestorId: number,
+  ): Promise<boolean> {
+    let currentId: number | null = childNodeId;
+    while (currentId !== null) {
+      const parentRecord: { parentId: number | null } | null =
+        await this.prisma.hierarchyNode.findUnique({
+          where: { id: currentId },
+          select: { parentId: true },
+        });
+      if (!parentRecord || parentRecord.parentId === null) {
+        return false;
+      }
+      if (parentRecord.parentId === targetAncestorId) {
+        return true;
+      }
+      currentId = parentRecord.parentId;
+    }
+    return false;
+  }
+
+  // Get active source point and valid destination dropdown for current user
+  async getMyDispatchContext(user: AuthenticatedUser) {
+    if (user.type === UserType.Admin) {
+      const rootNodes = await this.prisma.hierarchyNode.findMany({
+        where: { level: HierarchyLevel.Prant, status: HierarchyStatus.Active },
+        select: { id: true, name: true, level: true },
+        orderBy: { name: 'asc' },
+      });
+
+      return {
+        isSuperAdmin: true,
+        hasActiveAssignment: true,
+        sourcePoint: null, // Central publisher
+        designation: { id: 0, name: 'Super Administrator', level: 'Central' },
+        allowedDestinations: rootNodes,
+      };
+    }
+
+    const activeAssignment =
+      await this.prisma.userHierarchyDesignation.findFirst({
+        where: { userId: user.id, isActive: true },
+        include: {
+          node: {
+            select: {
+              id: true,
+              name: true,
+              level: true,
+              status: true,
+              parentId: true,
+            },
+          },
+          designation: {
+            select: { id: true, name: true, level: true },
+          },
+        },
+        orderBy: { assignedAt: 'desc' },
+      });
+
+    if (!activeAssignment) {
+      return {
+        isSuperAdmin: false,
+        hasActiveAssignment: false,
+        message: 'No active hierarchy assignment found for current user',
+        sourcePoint: null,
+        designation: null,
+        allowedDestinations: [],
+      };
+    }
+
+    const sourcePoint = activeAssignment.node;
+
+    if (sourcePoint.level === HierarchyLevel.Gram) {
+      return {
+        isSuperAdmin: false,
+        hasActiveAssignment: true,
+        sourcePoint: {
+          id: sourcePoint.id,
+          name: sourcePoint.name,
+          level: sourcePoint.level,
+        },
+        designation: activeAssignment.designation,
+        allowedDestinations: [],
+      };
+    }
+
+    const allNodes = await this.prisma.hierarchyNode.findMany({
+      where: { status: HierarchyStatus.Active },
+      select: { id: true, name: true, level: true, parentId: true },
+      orderBy: [{ level: 'asc' }, { name: 'asc' }],
+    });
+
+    const allowedDestinations = this.collectDescendants(
+      sourcePoint.id,
+      allNodes,
+    );
+
+    return {
+      isSuperAdmin: false,
+      hasActiveAssignment: true,
+      sourcePoint: {
+        id: sourcePoint.id,
+        name: sourcePoint.name,
+        level: sourcePoint.level,
+      },
+      designation: activeAssignment.designation,
+      allowedDestinations,
+    };
+  }
+
+  private collectDescendants(
+    parentId: number,
+    allNodes: Array<{
+      id: number;
+      name: string;
+      level: HierarchyLevel;
+      parentId: number | null;
+    }>,
+  ): Array<{ id: number; name: string; level: HierarchyLevel }> {
+    const directChildren = allNodes.filter((n) => n.parentId === parentId);
+    let descendants: Array<{
+      id: number;
+      name: string;
+      level: HierarchyLevel;
+    }> = [
+      ...directChildren.map((n) => ({
+        id: n.id,
+        name: n.name,
+        level: n.level,
+      })),
+    ];
+    for (const child of directChildren) {
+      descendants = descendants.concat(
+        this.collectDescendants(child.id, allNodes),
+      );
+    }
+    return descendants;
   }
 }

@@ -9,6 +9,7 @@ import {
 import { ConfigType } from '@nestjs/config';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import {
+  AuthenticatedUser,
   StorageService,
   UserType,
   UtilsService,
@@ -642,6 +643,12 @@ export class UsersService {
     oldPassword: string,
     newPassword: string,
   ): Promise<User> {
+    if (oldPassword === newPassword) {
+      throw new BadRequestException(
+        'New password must be different from the old password',
+      );
+    }
+
     const user = await this.getById(userId);
     const userMeta = await this.getMetaById(user.id);
 
@@ -1040,5 +1047,22 @@ export class UsersService {
       privileges: effectivePrivileges,
       total: effectivePrivileges.length,
     };
+  }
+
+  async getMyPrivileges(authUser: AuthenticatedUser) {
+    if (authUser.type === UserType.Admin) {
+      const allPrivileges = await this.prisma.privilege.findMany({
+        orderBy: { id: 'asc' },
+      });
+      return {
+        userId: authUser.id,
+        userName: 'Administrator',
+        roles: [{ id: 0, name: 'Super Administrator' }],
+        privileges: allPrivileges,
+        total: allPrivileges.length,
+      };
+    }
+
+    return await this.getEffectivePrivileges(authUser.id);
   }
 }

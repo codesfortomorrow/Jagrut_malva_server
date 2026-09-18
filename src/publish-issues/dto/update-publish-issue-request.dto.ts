@@ -1,11 +1,10 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform, Type } from 'class-transformer';
+import { Transform } from 'class-transformer';
 import {
   IsDate,
   IsEnum,
   IsInt,
   IsNotEmpty,
-  IsNumber,
   IsOptional,
   IsString,
   Min,
@@ -14,12 +13,14 @@ import { PublishIssueStatus } from '../../generated/prisma/client';
 
 export class UpdatePublishIssueRequestDto {
   @ApiPropertyOptional({
-    description: 'Unique issue number or identifier',
-    example: '26',
+    description: 'Unique alphanumeric issue number or identifier',
+    example: 'JM-2026-01',
   })
   @IsOptional()
   @Transform(({ value }) =>
-    typeof value === 'string' && value.trim() ? value.trim() : undefined,
+    value !== undefined && value !== null && String(value).trim()
+      ? String(value).trim()
+      : undefined,
   )
   @IsNotEmpty({ message: 'issueNo cannot be empty if provided' })
   @IsString()
@@ -62,34 +63,6 @@ export class UpdatePublishIssueRequestDto {
   @IsInt({ message: 'totalCopies must be an integer' })
   @Min(1, { message: 'totalCopies must be greater than 0' })
   totalCopies?: number;
-
-  @ApiPropertyOptional({
-    description: 'Price per copy in ₹',
-    example: 30,
-  })
-  @IsOptional()
-  @Transform(({ value }) =>
-    value === '' || value === null || value === undefined
-      ? undefined
-      : Number(value),
-  )
-  @IsNumber()
-  @Min(0, { message: 'pricePerCopy cannot be negative' })
-  pricePerCopy?: number;
-
-  @ApiPropertyOptional({
-    description: 'Page count of the issue',
-    example: 48,
-  })
-  @IsOptional()
-  @Transform(({ value }) =>
-    value === '' || value === null || value === undefined
-      ? undefined
-      : Number(value),
-  )
-  @IsInt({ message: 'pageCount must be an integer' })
-  @Min(1, { message: 'pageCount must be greater than 0' })
-  pageCount?: number;
 
   @ApiPropertyOptional({
     description:

@@ -17,6 +17,21 @@ import { GetPublishIssuesRequestDto } from './dto/get-publish-issues-request.dto
 
 const ISSUES_STORAGE_DIR = 'issues';
 
+const PUBLISH_ISSUE_INCLUDE = {
+  publishedBy: {
+    select: {
+      id: true,
+      firstname: true,
+      lastname: true,
+      email: true,
+    },
+  },
+} as const;
+
+type PublishIssueWithRelations = Prisma.PublishIssueGetPayload<{
+  include: typeof PUBLISH_ISSUE_INCLUDE;
+}>;
+
 @Injectable()
 export class PublishIssuesService {
   constructor(
@@ -24,7 +39,7 @@ export class PublishIssuesService {
     private readonly storageService: StorageService,
   ) {}
 
-  private attachFileUrl(issue: PublishIssue) {
+  private attachFileUrl(issue: PublishIssueWithRelations | PublishIssue) {
     return {
       ...issue,
       fileUrl: issue.filePath
@@ -36,6 +51,7 @@ export class PublishIssuesService {
   async findOne(id: number) {
     const issue = await this.prisma.publishIssue.findUnique({
       where: { id },
+      include: PUBLISH_ISSUE_INCLUDE,
     });
     if (!issue) {
       throw new NotFoundException(`Publish issue with ID ${id} not found`);
@@ -75,6 +91,7 @@ export class PublishIssuesService {
       skip,
       take,
       orderBy: { publishDate: 'desc' },
+      include: PUBLISH_ISSUE_INCLUDE,
     });
 
     const data = issues.map((issue) => this.attachFileUrl(issue));
@@ -82,7 +99,11 @@ export class PublishIssuesService {
     return { count, skip, take, data };
   }
 
-  async create(dto: CreatePublishIssueRequestDto, file?: File) {
+  async create(
+    dto: CreatePublishIssueRequestDto,
+    file?: File,
+    userId?: number,
+  ) {
     if (dto.totalCopies <= 0) {
       throw new BadRequestException(
         'totalCopies must be a positive integer greater than 0',
@@ -104,6 +125,9 @@ export class PublishIssuesService {
     let filePath: string | null = null;
 
     if (file) {
+      if (!file.filename) {
+        throw new BadRequestException('Uploaded file is invalid or corrupted');
+      }
       await this.storageService.move(file.filename, ISSUES_STORAGE_DIR);
       filePath = join(ISSUES_STORAGE_DIR, file.filename);
     }
@@ -126,12 +150,12 @@ export class PublishIssuesService {
           issueNo: dto.issueNo,
           title: dto.title ?? 'Jagrat Malwa Patrika',
           totalCopies: dto.totalCopies,
-          pricePerCopy: dto.pricePerCopy ?? null,
-          pageCount: dto.pageCount ?? null,
           publishDate: dto.publishDate,
           filePath,
           status: initialStatus,
+          publishedById: userId ?? null,
         },
+        include: PUBLISH_ISSUE_INCLUDE,
       });
 
       return this.attachFileUrl(issue);
@@ -152,7 +176,12 @@ export class PublishIssuesService {
     }
   }
 
-  async update(id: number, dto: UpdatePublishIssueRequestDto, file?: File) {
+  async update(
+    id: number,
+    dto: UpdatePublishIssueRequestDto,
+    file?: File,
+    userId?: number,
+  ) {
     const existing = await this.findOne(id);
 
     // Enforce safe lifecycle transitions and edit protections
@@ -182,13 +211,7 @@ export class PublishIssuesService {
       }
       if (
         dto.status === undefined &&
-        (dto.issueNo ||
-          dto.publishDate ||
-          dto.totalCopies ||
-          file ||
-          dto.title ||
-          dto.pricePerCopy ||
-          dto.pageCount)
+        (dto.issueNo || dto.publishDate || dto.totalCopies || file || dto.title)
       ) {
         throw new BadRequestException(
           'Cannot edit metadata of a published issue. Only status transition to Archived is permitted',
@@ -200,9 +223,7 @@ export class PublishIssuesService {
           dto.publishDate ||
           dto.totalCopies ||
           file ||
-          dto.title ||
-          dto.pricePerCopy ||
-          dto.pageCount
+          dto.title
         ) {
           throw new BadRequestException(
             'Cannot edit metadata when archiving a published issue',
@@ -261,6 +282,9 @@ export class PublishIssuesService {
 
     // 1. Move and store the new file FIRST before touching existing files or database
     if (file) {
+      if (!file.filename) {
+        throw new BadRequestException('Uploaded file is invalid or corrupted');
+      }
       await this.storageService.move(file.filename, ISSUES_STORAGE_DIR);
       newFilePath = join(ISSUES_STORAGE_DIR, file.filename);
       newFileStored = true;
@@ -271,10 +295,10 @@ export class PublishIssuesService {
       ...(dto.title !== undefined && { title: dto.title }),
       ...(dto.publishDate !== undefined && { publishDate: dto.publishDate }),
       ...(dto.totalCopies !== undefined && { totalCopies: dto.totalCopies }),
-      ...(dto.pricePerCopy !== undefined && { pricePerCopy: dto.pricePerCopy }),
-      ...(dto.pageCount !== undefined && { pageCount: dto.pageCount }),
       ...(newFilePath !== undefined && { filePath: newFilePath }),
       ...(dto.status !== undefined && { status: dto.status }),
+      ...(dto.status === PublishIssueStatus.Published &&
+        userId !== undefined && { publishedBy: { connect: { id: userId } } }),
     };
 
     try {
@@ -282,6 +306,7 @@ export class PublishIssuesService {
       const updated = await this.prisma.publishIssue.update({
         where: { id },
         data: updateData,
+        include: PUBLISH_ISSUE_INCLUDE,
       });
 
       // 3. Old file is removed ONLY AFTER the new file/reference is safely persisted in DB
