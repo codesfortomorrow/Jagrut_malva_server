@@ -24,6 +24,7 @@ import {
   UpdateProfileDetailsRequestDto,
   UpdateProfileImageRequestDto,
 } from './dto';
+import { CreateAdminRequestDto } from './dto/create-admin-request.dto';
 
 @ApiTags('Admin')
 @ApiBearerAuth()
@@ -86,5 +87,23 @@ export class AdminController extends BaseController {
     const ctx = this.getContext(req);
     await this.adminService.authenticate(ctx.user.id, data.password);
     return { status: 'success' };
+  }
+
+  @Post('create-user')
+  async register(
+    @Req() req: AuthenticatedRequest,
+    @Body() data: CreateAdminRequestDto,
+  ) {
+    const response = await this.adminService.create({
+      firstname: data.firstname,
+      lastname: data.lastname,
+      email: data.email,
+      password: data.password,
+      mobile: data.mobile,
+      country: data.country,
+      roleIds: data.roleIds,
+    });
+
+    return response;
   }
 }

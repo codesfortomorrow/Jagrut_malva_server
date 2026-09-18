@@ -296,13 +296,24 @@ export class DispatchesService {
       }
 
       // 4. Upstream Receipt Rule Validation
-      await this.validateUpstreamReceiptAndStock(
-        dto.issueId,
-        fromPoint.id,
-        fromPoint.name,
-        dto.quantity,
-        issue.issueNo,
-      );
+      // 4. Upstream Receipt Rule Validation
+      // Allow top-level Prant (root) nodes to originate downstream dispatches
+      // without requiring a prior upstream receipt. This treats a root node
+      // as an origin for its branch in the hierarchy.
+      if (
+        !(
+          fromPoint.level === HierarchyLevel.Prant &&
+          fromPoint.parentId === null
+        )
+      ) {
+        await this.validateUpstreamReceiptAndStock(
+          dto.issueId,
+          fromPoint.id,
+          fromPoint.name,
+          dto.quantity,
+          issue.issueNo,
+        );
+      }
     }
 
     // 5. Prevent Duplicate Active Dispatch

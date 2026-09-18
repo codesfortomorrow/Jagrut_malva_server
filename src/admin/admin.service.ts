@@ -14,6 +14,8 @@ import {
 import { PrismaService } from '../prisma';
 import { Admin, AdminMeta, Prisma } from '../generated/prisma/client';
 import { AdminStatus } from '../generated/prisma/enums';
+import { AuthService } from 'src/auth';
+import { CreateAdminRequestDto } from './dto/create-admin-request.dto';
 
 @Injectable()
 export class AdminService {
@@ -50,6 +52,22 @@ export class AdminService {
           email: email.toLowerCase(),
           NOT: {
             id: excludeAdminId,
+          },
+        },
+      })) !== 0
+    );
+  }
+
+  async isMobileExist(
+    mobile: string,
+    excludeUserId?: number,
+  ): Promise<boolean> {
+    return (
+      (await this.prisma.admin.count({
+        where: {
+          mobile,
+          NOT: {
+            id: excludeUserId,
           },
         },
       })) !== 0
@@ -273,5 +291,45 @@ export class AdminService {
         id: userId,
       },
     });
+  }
+
+  async create(data: CreateAdminRequestDto): Promise<Admin> {
+    if (await this.isEmailExist(data.email)) {
+      throw new Error('Email already exist');
+    }
+    if (data.mobile && (await this.isMobileExist(data.mobile))) {
+      throw new Error('Mobile already exist');
+    }
+
+    let passwordSalt = null;
+    let passwordHash = null;
+    if (data.password) {
+      const { salt, hash } = this.hashPassword(data.password);
+      passwordSalt = salt;
+      passwordHash = hash;
+    }
+
+    if (data.roleIds && data.roleIds.length > 0) {
+    }
+
+    if (data.designationIds && data.designationIds.length > 0) {
+    }
+
+    const adminUser = await this.prisma.admin.create({
+      data: {
+        firstname: data.firstname,
+        lastname: data.lastname,
+        email: data.email.toLowerCase(),
+        mobile: data.mobile,
+        status: AdminStatus.Active,
+        meta: {
+          create: {
+            passwordHash,
+            passwordSalt,
+          },
+        },
+      },
+    });
+    return adminUser;
   }
 }
