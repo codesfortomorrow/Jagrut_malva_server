@@ -157,35 +157,35 @@ export class UsersService {
     });
   }
 
-  async validateCredentials(
-    email: string,
-    password: string,
-  ): Promise<ValidatedUser | false | null> {
-    const user = await this.getByEmail(email);
-    if (!user) return null;
-    if (user.status !== UserStatus.Active) {
-      throw new Error(
-        'Your account has been temporarily suspended/blocked by the system. Please contact customer support for assistance',
-      );
-    }
+  // async validateCredentials(
+  //   email: string,
+  //   password: string,
+  // ): Promise<ValidatedUser | false | null> {
+  //   const user = await this.getByEmail(email);
+  //   if (!user) return null;
+  //   if (user.status !== UserStatus.Active) {
+  //     throw new Error(
+  //       'Your account has been temporarily suspended/blocked by the system. Please contact customer support for assistance',
+  //     );
+  //   }
 
-    const userMeta = await this.getMetaById(user.id);
-    const passwordHash = this.utilsService.hashPassword(
-      password,
-      userMeta.passwordSalt || '',
-      userMeta.passwordHash
-        ? userMeta.passwordHash.length / 2
-        : this.config.passwordHashLength,
-    );
-    if (userMeta.passwordHash === passwordHash) {
-      return {
-        id: user.id,
-        type: UserType.User,
-      };
-    }
+  //   const userMeta = await this.getMetaById(user.id);
+  //   const passwordHash = this.utilsService.hashPassword(
+  //     password,
+  //     userMeta.passwordSalt || '',
+  //     userMeta.passwordHash
+  //       ? userMeta.passwordHash.length / 2
+  //       : this.config.passwordHashLength,
+  //   );
+  //   if (userMeta.passwordHash === passwordHash) {
+  //     return {
+  //       id: user.id,
+  //       type: UserType.User,
+  //     };
+  //   }
 
-    return false;
-  }
+  //   return false;
+  // }
 
   async create(data: {
     firstname: string;
@@ -437,7 +437,7 @@ export class UsersService {
     );
 
     // Return full onboarded user details
-    return await this.prisma.user.findUnique({
+    return await this.prisma.admin.findUnique({
       where: { id: createdUserId },
       include: {
         roles: {
@@ -464,49 +464,49 @@ export class UsersService {
     });
   }
 
-  async getOrCreateByGoogle(data: {
-    googleId: string;
-    email: string;
-    firstname?: string;
-    lastname?: string;
-    profileImage?: string;
-  }): Promise<ValidatedUser> {
-    let user = await this.prisma.user.findFirst({
-      where: {
-        meta: {
-          googleId: data.googleId,
-        },
-      },
-    });
-    if (!user) {
-      const isEmailExist = await this.isEmailExist(data.email);
-      if (isEmailExist) {
-        user = await this.prisma.user.update({
-          data: {
-            meta: {
-              update: {
-                googleId: data.googleId,
-              },
-            },
-          },
-          where: { email: data.email.toLowerCase() },
-        });
-      } else {
-        user = await this.create({
-          firstname: data.firstname || '',
-          lastname: data.lastname || '',
-          email: data.email,
-          profileImage: data.profileImage,
-          googleId: data.googleId,
-        });
-      }
-    }
+  // async getOrCreateByGoogle(data: {
+  //   googleId: string;
+  //   email: string;
+  //   firstname?: string;
+  //   lastname?: string;
+  //   profileImage?: string;
+  // }): Promise<ValidatedUser> {
+  //   let user = await this.prisma.user.findFirst({
+  //     where: {
+  //       meta: {
+  //         googleId: data.googleId,
+  //       },
+  //     },
+  //   });
+  //   if (!user) {
+  //     const isEmailExist = await this.isEmailExist(data.email);
+  //     if (isEmailExist) {
+  //       user = await this.prisma.user.update({
+  //         data: {
+  //           meta: {
+  //             update: {
+  //               googleId: data.googleId,
+  //             },
+  //           },
+  //         },
+  //         where: { email: data.email.toLowerCase() },
+  //       });
+  //     } else {
+  //       user = await this.create({
+  //         firstname: data.firstname || '',
+  //         lastname: data.lastname || '',
+  //         email: data.email,
+  //         profileImage: data.profileImage,
+  //         googleId: data.googleId,
+  //       });
+  //     }
+  //   }
 
-    return {
-      id: user.id,
-      type: UserType.User,
-    };
-  }
+  //   return {
+  //     id: user.id,
+  //     type: UserType.User,
+  //   };
+  // }
 
   async getProfile(userId: number): Promise<User> {
     const user = await this.getById(userId);

@@ -176,12 +176,15 @@ export class AuthController extends BaseController {
     @Req() req: Request & { user: ValidatedUser },
     @Res({ passthrough: true }) res: Response,
   ) {
-    const { accessToken, expiresIn, type } = await this.authService.login(
-      req.user.id,
-      req.user.type,
-    );
+    const { accessToken, expiresIn, type, role, privilege } =
+      await this.authService.login(
+        req.user.id,
+        req.user.type,
+        req.user.role,
+        req.user.assignedPrivileges || [],
+      );
     this.setAuthCookie(res, accessToken, type, expiresIn);
-    return { accessToken, expiresIn, type };
+    return { accessToken, expiresIn, type, role, privilege };
   }
 
   @UseGuards(GoogleOAuthGuard)
@@ -199,6 +202,8 @@ export class AuthController extends BaseController {
     const { accessToken, expiresIn, type } = await this.authService.login(
       req.user.id,
       req.user.type,
+      req.user.role,
+      req.user.assignedPrivileges || [],
     );
     this.setAuthCookie(res, accessToken, type, expiresIn);
     return {

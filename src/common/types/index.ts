@@ -9,6 +9,7 @@ import {
   Min,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
+import { RoleType } from 'src/generated/prisma/enums';
 
 export enum NodeType {
   Master = 'master',
@@ -104,11 +105,14 @@ export enum UserType {
 export interface JwtPayload {
   readonly sub: number;
   readonly type: UserType;
+  readonly role: string;
 }
 
 export interface ValidatedUser {
   readonly id: number;
   readonly type: UserType;
+  readonly role: string;
+  readonly assignedPrivileges?: string[];
 }
 
 export interface AuthenticatedUser {

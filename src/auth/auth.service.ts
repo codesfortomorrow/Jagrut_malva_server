@@ -15,6 +15,8 @@ export type ValidAuthResponse = {
   accessToken: string;
   expiresIn: number;
   type: UserType;
+  role: string;
+  privilege?: any[];
 };
 
 export type InvalidVerifyCodeResponse = {
@@ -76,15 +78,23 @@ export class AuthService {
     throw new Error('Unknown send code request type found');
   }
 
-  async login(userId: number, type: UserType): Promise<ValidAuthResponse> {
+  async login(
+    userId: number,
+    type: UserType,
+    role: string,
+    privilege: any[],
+  ): Promise<ValidAuthResponse> {
     const { token, expiresIn } = await this.generateJwt({
       sub: userId,
       type,
+      role,
     });
     return {
       accessToken: token,
       expiresIn,
       type,
+      role,
+      privilege,
     };
   }
 
@@ -136,11 +146,14 @@ export class AuthService {
     const { token, expiresIn } = await this.generateJwt({
       sub: user.id,
       type: UserType.User,
+      role: 'member',
     });
     return {
       accessToken: token,
       expiresIn,
       type: UserType.User,
+      role: 'member',
+      privilege: [],
     };
   }
 

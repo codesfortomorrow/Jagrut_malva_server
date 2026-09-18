@@ -17,10 +17,6 @@ import {
 
 @Injectable()
 export class RolesService {
-  // ==========================================
-  // [LIVE IDE TOOL EDIT] RBAC Service Ready!
-  // ==========================================
-
   constructor(private readonly prisma: PrismaService) {}
 
   // ── Privilege Catalog ──────────────────────────────────────────────────────

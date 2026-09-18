@@ -112,9 +112,43 @@ export class AdminService {
     );
 
     if (adminMeta.passwordHash === passwordHash) {
+      const assignedRole = await this.prisma.userRole.findFirst({
+        where: { userId: admin.id },
+        select: {
+          role: {
+            select: { name: true },
+          },
+        },
+      });
+
+      const roleName = assignedRole?.role.name ?? null;
+      const userRoles = await this.prisma.userRole.findMany({
+        where: { userId: admin.id },
+        include: {
+          role: {
+            include: {
+              privileges: {
+                include: {
+                  privilege: {
+                    select: {
+                      id: true,
+                      key: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+      const rolesPrivileges = userRoles.flatMap((ur) =>
+        ur.role.privileges.map((rp) => rp.privilege.key),
+      );
       return {
         id: admin.id,
         type: UserType.Admin,
+        role: roleName || 'member',
+        assignedPrivileges: rolesPrivileges || [''],
       };
     }
 

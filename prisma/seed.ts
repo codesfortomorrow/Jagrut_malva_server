@@ -3,26 +3,12 @@ import { isEmail } from 'class-validator';
 import { admin, systemRoles, businessRoles, privileges } from './seeds';
 import { ADMIN_ROLE_NAME } from '../src/roles/privilege-catalog.constant';
 import { PrismaClient } from '../src/generated/prisma/client';
+import { prismaVersion } from 'src/generated/prisma/internal/prismaNamespace';
 
 const prisma = new PrismaClient();
 
 async function main() {
   // ── Admin ───────────────────────────────────────────────────────────────────
-  if (await prisma.admin.count()) {
-    console.log('⚠ Skipping seed for `admin`, due to non-empty table');
-  } else {
-    if (
-      isEmail(admin.email) &&
-      admin.meta?.create?.passwordHash &&
-      admin.meta.create.passwordSalt
-    ) {
-      await prisma.admin.create({ data: admin });
-      console.log('✔ Admin seeded');
-    } else {
-      console.error(new Error('Invalid default admin credentials found'));
-    }
-  }
-
   // ── Privileges — upsert from catalog, then prune removed ones ───────────────
   for (const privilege of privileges) {
     await prisma.privilege.upsert({
@@ -82,6 +68,32 @@ async function main() {
     }
   }
   console.log(`✔ Seeded ${businessRoles.length} business roles`);
+
+  if (await prisma.admin.count()) {
+    console.log('⚠ Skipping seed for `admin`, due to non-empty table');
+  } else {
+    if (
+      isEmail(admin.email) &&
+      admin.meta?.create?.passwordHash &&
+      admin.meta.create.passwordSalt
+    ) {
+      await prisma.admin.create({ data: admin });
+      const adminRole = await prisma.role.findFirst({
+        where: { name: ADMIN_ROLE_NAME },
+      });
+      if (adminRole) {
+        await prisma.userRole.create({
+          data: {
+            userId: 1,
+            roleId: adminRole.id,
+          },
+        });
+      }
+      console.log('✔ Admin seeded');
+    } else {
+      console.error(new Error('Invalid default admin credentials found'));
+    }
+  }
 }
 
 main()

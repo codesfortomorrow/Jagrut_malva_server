@@ -28,20 +28,21 @@ export class GoogleStrategy extends PassportStrategy(Strategy, GOOGLE_OAUTH) {
     profile: Profile,
     done: VerifyCallback,
   ): Promise<void> {
+    return;
     const { given_name, family_name, email, picture, sub } = profile._json;
     if (!email) {
       done(new UnprocessableEntityException('Profile email not public'));
       return;
     }
 
-    const user = await this.usersService.getOrCreateByGoogle({
-      googleId: sub,
-      email,
-      firstname: given_name,
-      lastname: family_name,
-      profileImage: picture,
-    });
+    // const user = await this.usersService.getOrCreateByGoogle({
+    //   googleId: sub,
+    //   email,
+    //   firstname: given_name,
+    //   lastname: family_name,
+    //   profileImage: picture,
+    // });
 
-    done(null, user);
+    // done(null, user);
   }
 }
