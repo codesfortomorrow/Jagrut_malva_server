@@ -16,6 +16,7 @@ import { GetHierarchyNodesDto } from './dto/get-hierarchy-nodes.dto';
 
 const LEVEL_ORDER: HierarchyLevel[] = [
   HierarchyLevel.Prant,
+  HierarchyLevel.Vibhag,
   HierarchyLevel.Jila,
   HierarchyLevel.Khand,
   HierarchyLevel.Mandal,
@@ -24,7 +25,8 @@ const LEVEL_ORDER: HierarchyLevel[] = [
 
 /** Each level's required parent level — Prant has no entry (root) */
 const REQUIRED_PARENT_LEVEL: Partial<Record<HierarchyLevel, HierarchyLevel>> = {
-  [HierarchyLevel.Jila]: HierarchyLevel.Prant,
+  [HierarchyLevel.Vibhag]: HierarchyLevel.Prant,
+  [HierarchyLevel.Jila]: HierarchyLevel.Vibhag,
   [HierarchyLevel.Khand]: HierarchyLevel.Jila,
   [HierarchyLevel.Mandal]: HierarchyLevel.Khand,
   [HierarchyLevel.Gram]: HierarchyLevel.Mandal,

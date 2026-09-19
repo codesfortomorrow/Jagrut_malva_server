@@ -101,7 +101,8 @@ export class AdminController extends BaseController {
       password: data.password,
       mobile: data.mobile,
       country: data.country,
-      roleIds: data.roleIds,
+      roleId: data.roleId,
+      assignments: data.assignments,
     });
 
     return response;

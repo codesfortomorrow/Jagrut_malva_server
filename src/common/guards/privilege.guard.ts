@@ -78,8 +78,8 @@ export class PrivilegeGuard implements CanActivate {
         keys.add(p.key);
       }
     } else if (user.type === UserType.User) {
-      const userRoles = await this.prisma.userRole.findMany({
-        where: { userId: user.id },
+      const userRoles = await this.prisma.admin.findMany({
+        where: { id: user.id },
         include: {
           role: {
             include: { privileges: { include: { privilege: true } } },

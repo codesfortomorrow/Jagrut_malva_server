@@ -3,6 +3,7 @@ import { Prisma } from '../../src/generated/prisma/client';
 export const admin: Prisma.AdminCreateInput = {
   firstname: '',
   lastname: '',
+  role: { connect: { name: 'Admin' } },
   email: process.env.ADMIN_EMAIL || '',
   meta: {
     create: {

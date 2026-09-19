@@ -13,9 +13,16 @@ import {
 } from '@Common';
 import { PrismaService } from '../prisma';
 import { Admin, AdminMeta, Prisma } from '../generated/prisma/client';
-import { AdminStatus } from '../generated/prisma/enums';
+import {
+  AdminStatus,
+  HierarchyStatus,
+  RoleStatus,
+} from '../generated/prisma/enums';
 import { AuthService } from 'src/auth';
-import { CreateAdminRequestDto } from './dto/create-admin-request.dto';
+import {
+  CreateAdminAssignmentDto,
+  CreateAdminRequestDto,
+} from './dto/create-admin-request.dto';
 
 @Injectable()
 export class AdminService {
@@ -27,6 +34,82 @@ export class AdminService {
     private readonly utilsService: UtilsService,
     private readonly storageService: StorageService,
   ) {}
+
+  async validateAssignmentRefs(assignments: CreateAdminAssignmentDto[]) {
+    if (assignments.length === 0) return;
+
+    const pointIds = [...new Set(assignments.map((a) => a.pointId))];
+    const designationIds = [
+      ...new Set(assignments.map((a) => a.designationId)),
+    ];
+    const reportingIds = [
+      ...new Set(
+        assignments
+          .map((a) => a.reportingId)
+          .filter((id): id is number => id != null),
+      ),
+    ];
+
+    const [points, designations, reportingAdmins] = await Promise.all([
+      this.prisma.hierarchyNode.findMany({
+        where: { id: { in: pointIds } },
+        select: { id: true, status: true },
+      }),
+      this.prisma.hierarchyDesignation.findMany({
+        where: { id: { in: designationIds } },
+        select: { id: true, status: true },
+      }),
+      reportingIds.length
+        ? this.prisma.admin.findMany({
+            where: { id: { in: reportingIds } },
+            select: { id: true, status: true },
+          })
+        : Promise.resolve([]),
+    ]);
+
+    const pointMap = new Map(points.map((p) => [p.id, p.status]));
+    const designationMap = new Map(designations.map((d) => [d.id, d.status]));
+    const reportingMap = new Map(reportingAdmins.map((r) => [r.id, r.status]));
+
+    const errors: string[] = [];
+
+    for (const [index, a] of assignments.entries()) {
+      const pointStatus = pointMap.get(a.pointId);
+      if (pointStatus === undefined) {
+        errors.push(`Row ${index + 1}: pointId ${a.pointId} does not exist`);
+      } else if (pointStatus !== 'Active') {
+        errors.push(`Row ${index + 1}: pointId ${a.pointId} is not active`);
+      }
+
+      const designationStatus = designationMap.get(a.designationId);
+      if (designationStatus === undefined) {
+        errors.push(
+          `Row ${index + 1}: designationId ${a.designationId} does not exist`,
+        );
+      } else if (designationStatus !== 'Active') {
+        errors.push(
+          `Row ${index + 1}: designationId ${a.designationId} is not active`,
+        );
+      }
+
+      if (a.reportingId != null) {
+        const reportingStatus = reportingMap.get(a.reportingId);
+        if (reportingStatus === undefined) {
+          errors.push(
+            `Row ${index + 1}: reportingId ${a.reportingId} does not exist`,
+          );
+        } else if (reportingStatus !== 'Active') {
+          errors.push(
+            `Row ${index + 1}: reportingId ${a.reportingId} is not active`,
+          );
+        }
+      }
+    }
+
+    if (errors.length > 0) {
+      throw new BadRequestException(errors);
+    }
+  }
 
   private getProfileImageUrl(profileImage: string): string {
     return this.storageService.getFileUrl(
@@ -130,8 +213,8 @@ export class AdminService {
     );
 
     if (adminMeta.passwordHash === passwordHash) {
-      const assignedRole = await this.prisma.userRole.findFirst({
-        where: { userId: admin.id },
+      const assignedRole = await this.prisma.admin.findFirst({
+        where: { id: admin.id },
         select: {
           role: {
             select: { name: true },
@@ -140,8 +223,8 @@ export class AdminService {
       });
 
       const roleName = assignedRole?.role.name ?? null;
-      const userRoles = await this.prisma.userRole.findMany({
-        where: { userId: admin.id },
+      const userRoles = await this.prisma.admin.findMany({
+        where: { id: admin.id },
         include: {
           role: {
             include: {
@@ -301,18 +384,25 @@ export class AdminService {
       throw new Error('Mobile already exist');
     }
 
+    if (data.roleId) {
+      const result = await this.prisma.role.findFirst({
+        where: { id: data.roleId, status: RoleStatus.Active },
+      });
+      if (!result) {
+        throw new Error(
+          'Assigned Role is not longer Active, Please refresh the roles section and try again',
+        );
+      }
+    }
+
+    this.validateAssignmentRefs(data.assignments);
+
     let passwordSalt = null;
     let passwordHash = null;
     if (data.password) {
       const { salt, hash } = this.hashPassword(data.password);
       passwordSalt = salt;
       passwordHash = hash;
-    }
-
-    if (data.roleIds && data.roleIds.length > 0) {
-    }
-
-    if (data.designationIds && data.designationIds.length > 0) {
     }
 
     const adminUser = await this.prisma.admin.create({
@@ -322,6 +412,7 @@ export class AdminService {
         email: data.email.toLowerCase(),
         mobile: data.mobile,
         status: AdminStatus.Active,
+        roleId: data.roleId,
         meta: {
           create: {
             passwordHash,
@@ -330,6 +421,18 @@ export class AdminService {
         },
       },
     });
+
+    data.assignments.map(async (assignment) => {
+      await this.prisma.userHierarchyDesignation.create({
+        data: {
+          userId: adminUser.id,
+          nodeId: assignment.pointId,
+          designationId: assignment.designationId,
+          reportingId: assignment.reportingId,
+        },
+      });
+    });
+
     return adminUser;
   }
 }

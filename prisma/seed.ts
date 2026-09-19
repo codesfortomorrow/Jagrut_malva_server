@@ -77,18 +77,12 @@ async function main() {
       admin.meta?.create?.passwordHash &&
       admin.meta.create.passwordSalt
     ) {
-      await prisma.admin.create({ data: admin });
       const adminRole = await prisma.role.findFirst({
         where: { name: ADMIN_ROLE_NAME },
       });
-      if (adminRole) {
-        await prisma.userRole.create({
-          data: {
-            userId: 1,
-            roleId: adminRole.id,
-          },
-        });
-      }
+      admin.role = { connect: { id: adminRole?.id } };
+      await prisma.admin.create({ data: admin });
+
       console.log('✔ Admin seeded');
     } else {
       console.error(new Error('Invalid default admin credentials found'));

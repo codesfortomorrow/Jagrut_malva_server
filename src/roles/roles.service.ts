@@ -213,7 +213,7 @@ export class RolesService {
       );
     }
 
-    const assignedUsers = await this.prisma.userRole.count({
+    const assignedUsers = await this.prisma.admin.count({
       where: { roleId: id },
     });
     if (assignedUsers > 0) {

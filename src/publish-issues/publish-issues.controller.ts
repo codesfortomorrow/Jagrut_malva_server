@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseIntPipe,
@@ -137,5 +138,15 @@ export class PublishIssuesController extends BaseController {
   ) {
     const userId = req ? this.getContext(req).user?.id : undefined;
     return this.publishIssuesService.update(id, dto, file, userId);
+  }
+
+  @RequirePrivilege('publish_issues.delete')
+  @Delete(':id')
+  @ApiOperation({
+    summary: 'Delete a publish issue (must have no associated dispatches)',
+  })
+  @ApiParam({ name: 'id', type: Number })
+  deletePublishIssue(@Param('id', ParseIntPipe) id: number) {
+    return this.publishIssuesService.delete(id);
   }
 }

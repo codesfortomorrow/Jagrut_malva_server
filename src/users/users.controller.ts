@@ -67,10 +67,9 @@ export class UsersController extends BaseController {
     status: 400,
     description: 'Validation failed or duplicate email/mobile',
   })
-  async createUser(@Body() dto: CreateUserRequestDto) {
-    return await this.usersService.createUser(dto);
-  }
-
+  // async createUser(@Body() dto: CreateUserRequestDto) {
+  //   return await this.usersService.createUser(dto);
+  // }
   @Roles(UserType.Admin)
   @UseGuards(RolesGuard)
   @Get()
@@ -86,19 +85,6 @@ export class UsersController extends BaseController {
   async getProfile(@Req() req: AuthenticatedRequest) {
     const ctx = this.getContext(req);
     return await this.usersService.getProfile(ctx.user.id);
-  }
-
-  @Get('me/privileges')
-  @ApiOperation({
-    summary: 'Get effective privileges of the currently authenticated user',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Deduplicated list of effective privileges for logged-in user',
-  })
-  async getMyPrivileges(@Req() req: AuthenticatedRequest) {
-    const ctx = this.getContext(req);
-    return await this.usersService.getMyPrivileges(ctx.user);
   }
 
   @Patch('me')
@@ -174,77 +160,19 @@ export class UsersController extends BaseController {
   }
 
   // GET ROLES ASSIGNED TO A USER
-  @RequirePrivilege('roles.view')
-  @UseGuards(PrivilegeGuard)
-  @Get(':userId/roles')
-  @ApiOperation({ summary: 'Get all roles assigned to a user' })
-  @ApiParam({ name: 'userId', type: Number, description: 'User ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'List of roles assigned to the user',
-  })
-  @ApiResponse({ status: 404, description: 'User not found' })
-  getUserRoles(@Param('userId', ParseIntPipe) userId: number) {
-    return this.usersService.getUserRoles(userId);
-  }
-
-  // ASSIGN A ROLE TO A USER
-  @RequirePrivilege('roles.assign')
-  @UseGuards(PrivilegeGuard)
-  @Post(':userId/roles')
-  @ApiOperation({ summary: 'Assign a role to a user' })
-  @ApiParam({ name: 'userId', type: Number, description: 'User ID' })
-  @ApiResponse({
-    status: 201,
-    description: 'Role assigned to user successfully',
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Role is already assigned to this user',
-  })
-  @ApiResponse({ status: 404, description: 'User or role not found' })
-  assignRole(
-    @Param('userId', ParseIntPipe) userId: number,
-    @Body() dto: AssignRoleRequestDto,
-  ) {
-    return this.usersService.assignRole(userId, dto.roleId);
-  }
-
-  // REMOVE A ROLE FROM A USER
-  @RequirePrivilege('roles.assign')
-  @UseGuards(PrivilegeGuard)
-  @Delete(':userId/roles/:roleId')
-  @ApiOperation({ summary: 'Remove a role from a user' })
-  @ApiParam({ name: 'userId', type: Number, description: 'User ID' })
-  @ApiParam({ name: 'roleId', type: Number, description: 'Role ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'Role removed from user successfully',
-  })
-  @ApiResponse({ status: 404, description: 'User, role, or mapping not found' })
-  removeRole(
-    @Param('userId', ParseIntPipe) userId: number,
-    @Param('roleId', ParseIntPipe) roleId: number,
-  ) {
-    return this.usersService.removeRole(userId, roleId);
-  }
-
-  // GET EFFECTIVE PRIVILEGES OF A USER
-  @RequirePrivilege('roles.view')
-  @UseGuards(PrivilegeGuard)
-  @Get(':userId/privileges')
-  @ApiOperation({
-    summary: 'Get effective privileges derived from all assigned roles',
-  })
-  @ApiParam({ name: 'userId', type: Number, description: 'User ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'Deduplicated list of effective privileges',
-  })
-  @ApiResponse({ status: 404, description: 'User not found' })
-  getEffectivePrivileges(@Param('userId', ParseIntPipe) userId: number) {
-    return this.usersService.getEffectivePrivileges(userId);
-  }
+  // @RequirePrivilege('roles.view')
+  // @UseGuards(PrivilegeGuard)
+  // @Get(':userId/roles')
+  // @ApiOperation({ summary: 'Get all roles assigned to a user' })
+  // @ApiParam({ name: 'userId', type: Number, description: 'User ID' })
+  // @ApiResponse({
+  //   status: 200,
+  //   description: 'List of roles assigned to the user',
+  // })
+  // @ApiResponse({ status: 404, description: 'User not found' })
+  // getUserRoles(@Param('userId', ParseIntPipe) userId: number) {
+  //   return this.usersService.getUserRoles(userId);
+  // }
 
   @ApiParam({ name: 'status', enum: UserStatus })
   @Roles(UserType.Admin)

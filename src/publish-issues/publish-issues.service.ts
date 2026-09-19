@@ -39,6 +39,21 @@ export class PublishIssuesService {
     private readonly storageService: StorageService,
   ) {}
 
+  // ── Helpers ────────────────────────────────────────────────────────────────
+
+  private async findPublishIssueOrThrow(id: number) {
+    const issue = await this.prisma.publishIssue.findUnique({
+      where: { id },
+      include: PUBLISH_ISSUE_INCLUDE,
+    });
+    if (!issue) {
+      throw new NotFoundException(`Publish issue with ID ${id} not found`);
+    }
+    return issue;
+  }
+
+  // ── Response ────────────────────────────────────────────────────────────────
+
   private attachFileUrl(issue: PublishIssueWithRelations | PublishIssue) {
     return {
       ...issue,
@@ -49,13 +64,7 @@ export class PublishIssuesService {
   }
 
   async findOne(id: number) {
-    const issue = await this.prisma.publishIssue.findUnique({
-      where: { id },
-      include: PUBLISH_ISSUE_INCLUDE,
-    });
-    if (!issue) {
-      throw new NotFoundException(`Publish issue with ID ${id} not found`);
-    }
+    const issue = await this.findPublishIssueOrThrow(id);
     return this.attachFileUrl(issue);
   }
 
@@ -217,19 +226,8 @@ export class PublishIssuesService {
           'Cannot edit metadata of a published issue. Only status transition to Archived is permitted',
         );
       }
-      if (dto.status === PublishIssueStatus.Archived) {
-        if (
-          dto.issueNo ||
-          dto.publishDate ||
-          dto.totalCopies ||
-          file ||
-          dto.title
-        ) {
-          throw new BadRequestException(
-            'Cannot edit metadata when archiving a published issue',
-          );
-        }
-      }
+      // Status transition from Published to Archived is allowed!
+      // If frontend/Swagger sends existing fields along with status=Archived, they will be safely ignored.
     }
 
     if (existing.status === PublishIssueStatus.Draft) {
@@ -277,11 +275,15 @@ export class PublishIssuesService {
       }
     }
 
+    const isArchiving =
+      existing.status === PublishIssueStatus.Published &&
+      dto.status === PublishIssueStatus.Archived;
+
     let newFilePath: string | undefined = undefined;
     let newFileStored = false;
 
     // 1. Move and store the new file FIRST before touching existing files or database
-    if (file) {
+    if (file && !isArchiving) {
       if (!file.filename) {
         throw new BadRequestException('Uploaded file is invalid or corrupted');
       }
@@ -290,16 +292,24 @@ export class PublishIssuesService {
       newFileStored = true;
     }
 
-    const updateData: Prisma.PublishIssueUpdateInput = {
-      ...(dto.issueNo !== undefined && { issueNo: dto.issueNo }),
-      ...(dto.title !== undefined && { title: dto.title }),
-      ...(dto.publishDate !== undefined && { publishDate: dto.publishDate }),
-      ...(dto.totalCopies !== undefined && { totalCopies: dto.totalCopies }),
-      ...(newFilePath !== undefined && { filePath: newFilePath }),
-      ...(dto.status !== undefined && { status: dto.status }),
-      ...(dto.status === PublishIssueStatus.Published &&
-        userId !== undefined && { publishedBy: { connect: { id: userId } } }),
-    };
+    const updateData: Prisma.PublishIssueUpdateInput = isArchiving
+      ? { status: PublishIssueStatus.Archived }
+      : {
+          ...(dto.issueNo !== undefined && { issueNo: dto.issueNo }),
+          ...(dto.title !== undefined && { title: dto.title }),
+          ...(dto.publishDate !== undefined && {
+            publishDate: dto.publishDate,
+          }),
+          ...(dto.totalCopies !== undefined && {
+            totalCopies: dto.totalCopies,
+          }),
+          ...(newFilePath !== undefined && { filePath: newFilePath }),
+          ...(dto.status !== undefined && { status: dto.status }),
+          ...(dto.status === PublishIssueStatus.Published &&
+            userId !== undefined && {
+              publishedBy: { connect: { id: userId } },
+            }),
+        };
 
     try {
       // 2. Database update must succeed with the new path
@@ -335,5 +345,48 @@ export class PublishIssuesService {
       }
       throw err;
     }
+  }
+
+  async delete(id: number) {
+    const issue = await this.findPublishIssueOrThrow(id);
+
+    // Enforce lifecycle: Archived issues are in inactive historical state and cannot be deleted
+    if (issue.status === PublishIssueStatus.Archived) {
+      throw new BadRequestException(
+        `Cannot delete archived publish issue '${issue.issueNo}'. Archived issues are in an inactive historical state.`,
+      );
+    }
+
+    // Enforce lifecycle: Published issues cannot be directly deleted
+    if (issue.status === PublishIssueStatus.Published) {
+      throw new BadRequestException(
+        `Cannot delete published publish issue '${issue.issueNo}'. Only draft issues can be deleted.`,
+      );
+    }
+
+    // Check if the publish issue has any associated dispatches
+    const dispatchCount = await this.prisma.dispatchEntry.count({
+      where: { issueId: id },
+    });
+
+    if (dispatchCount > 0) {
+      throw new BadRequestException(
+        `Cannot delete publish issue '${issue.issueNo}' — it has ${dispatchCount} associated dispatch(es). Remove all dispatches first.`,
+      );
+    }
+
+    // Delete the publish issue and clean up file in transaction
+    await this.prisma.$transaction(async (tx) => {
+      await tx.publishIssue.delete({
+        where: { id },
+      });
+
+      // Clean up file if it exists
+      if (issue.filePath) {
+        await this.storageService.removeFile(issue.filePath);
+      }
+    });
+
+    return { message: `Publish issue '${issue.issueNo}' deleted successfully` };
   }
 }

@@ -48,7 +48,7 @@ export class HierarchyController extends BaseController {
   @Post()
   @ApiOperation({
     summary:
-      'Create a new hierarchy node. Strict level rules apply: Prant → Jila → Khand Nagar → Mandal Basti → Gram Mohalla',
+      'Create a new hierarchy node. Strict level rules apply: Prant → Vibhag → Jila → Khand Nagar → Mandal Basti → Gram Mohalla',
   })
   create(@Body() dto: CreateHierarchyNodeDto) {
     return this.hierarchyService.create(dto);

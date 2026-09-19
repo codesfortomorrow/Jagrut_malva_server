@@ -44,7 +44,8 @@ model Admin {
   createdAt              DateTime                   @default(now()) @map("created_at")
   updatedAt              DateTime                   @updatedAt @map("updated_at")
   meta                   AdminMeta?
-  roles                  UserRole[]
+  role                   Role                       @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  roleId                 Int                        @map("role_id")
   receivedDispatches     DispatchEntry[]            @relation("DispatchesReceived")
   createdDispatches      DispatchEntry[]            @relation("DispatchesCreated")
   designationAssignments UserHierarchyDesignation[] @relation("UserAssignments")
@@ -214,7 +215,7 @@ model Role {
   createdAt   DateTime        @default(now()) @map("created_at")
   updatedAt   DateTime        @updatedAt @map("updated_at")
   privileges  RolePrivilege[]
-  admin       UserRole[]
+  admins      Admin[]
 
   @@map("role")
 }
@@ -241,21 +242,11 @@ model RolePrivilege {
   @@map("role_privilege")
 }
 
-model UserRole {
-  user       Admin    @relation(fields: [userId], references: [id])
-  userId     Int      @map("user_id")
-  role       Role     @relation(fields: [roleId], references: [id])
-  roleId     Int      @map("role_id")
-  assignedAt DateTime @default(now()) @map("assigned_at")
-
-  @@id([userId, roleId])
-  @@map("user_role")
-}
-
 // ─── Jagrut Malwa: Organization Hierarchy ────────────────────────────────────
 
 enum HierarchyLevel {
   Prant  @map("prant")
+  Vibhag @map("vibhag")
   Jila   @map("jila")
   Khand  @map("khand_nagar")
   Mandal @map("mandal_basti")

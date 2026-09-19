@@ -98,25 +98,17 @@ export class CreateAdminRequestDto {
     type: [Number],
   })
   @IsOptional()
-  @IsArray()
   @IsInt({ each: true, message: 'each roleId must be an integer' })
   @Type(() => Number)
-  roleIds?: number[];
+  roleId: number;
 
   @ApiPropertyOptional({
     description:
       'Array of explicit organizational assignments, each binding a point, designation, and reporting authority',
     type: [CreateAdminAssignmentDto],
   })
-  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreateAdminAssignmentDto)
-  assignments?: CreateAdminAssignmentDto[];
-
-  @IsOptional()
-  @IsArray()
-  @IsInt({ each: true, message: 'each designationId must be an integer' })
-  @Type(() => Number)
-  designationIds?: number[];
+  assignments: CreateAdminAssignmentDto[];
 }

@@ -73,16 +73,18 @@ const DISPATCH_INCLUDE = {
 
 const HIERARCHY_LEVEL_RANK: Record<HierarchyLevel, number> = {
   [HierarchyLevel.Prant]: 1,
-  [HierarchyLevel.Jila]: 2,
-  [HierarchyLevel.Khand]: 3,
-  [HierarchyLevel.Mandal]: 4,
-  [HierarchyLevel.Gram]: 5,
+  [HierarchyLevel.Vibhag]: 2,
+  [HierarchyLevel.Jila]: 3,
+  [HierarchyLevel.Khand]: 4,
+  [HierarchyLevel.Mandal]: 5,
+  [HierarchyLevel.Gram]: 6,
 };
 
 const ALLOWED_DOWNSTREAM_LEVEL: Partial<
   Record<HierarchyLevel, HierarchyLevel>
 > = {
-  [HierarchyLevel.Prant]: HierarchyLevel.Jila,
+  [HierarchyLevel.Prant]: HierarchyLevel.Vibhag,
+  [HierarchyLevel.Vibhag]: HierarchyLevel.Jila,
   [HierarchyLevel.Jila]: HierarchyLevel.Khand,
   [HierarchyLevel.Khand]: HierarchyLevel.Mandal,
   [HierarchyLevel.Mandal]: HierarchyLevel.Gram,

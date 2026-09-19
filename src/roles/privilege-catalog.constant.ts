@@ -195,6 +195,11 @@ const MODULE_DEFINITIONS: ModuleDefinition[] = [
         action: 'edit',
         description: 'Update publish issues and modify their lifecycle status',
       },
+      {
+        action: 'delete',
+        description:
+          'Delete draft publish issues (must have no associated dispatches)',
+      },
     ],
   },
   {

@@ -265,204 +265,204 @@ export class UsersService {
     return !!activeAssignment;
   }
 
-  async createUser(dto: CreateUserRequestDto) {
-    const email = dto.email.trim().toLowerCase();
-    const mobile = dto.mobile ? dto.mobile.trim() : null;
+  // async createUser(dto: CreateUserRequestDto) {
+  //   const email = dto.email.trim().toLowerCase();
+  //   const mobile = dto.mobile ? dto.mobile.trim() : null;
 
-    if (await this.isEmailExist(email)) {
-      throw new BadRequestException(`Email '${email}' is already registered`);
-    }
+  //   if (await this.isEmailExist(email)) {
+  //     throw new BadRequestException(`Email '${email}' is already registered`);
+  //   }
 
-    if (mobile && (await this.isMobileExist(mobile))) {
-      throw new BadRequestException(`Mobile '${mobile}' is already registered`);
-    }
+  //   if (mobile && (await this.isMobileExist(mobile))) {
+  //     throw new BadRequestException(`Mobile '${mobile}' is already registered`);
+  //   }
 
-    // 1. Validate Roles if provided
-    const roleIds =
-      dto.roleIds && dto.roleIds.length > 0
-        ? Array.from(new Set(dto.roleIds))
-        : [];
-    if (roleIds.length > 0) {
-      const foundRoles = await this.prisma.role.findMany({
-        where: { id: { in: roleIds } },
-      });
-      if (foundRoles.length !== roleIds.length) {
-        throw new BadRequestException(
-          'One or more specified role IDs do not exist',
-        );
-      }
-      for (const role of foundRoles) {
-        if (role.status !== RoleStatus.Active) {
-          throw new BadRequestException(`Role '${role.name}' is inactive`);
-        }
-      }
-    }
+  //   // 1. Validate Roles if provided
+  //   const roleIds =
+  //     dto.roleIds && dto.roleIds.length > 0
+  //       ? Array.from(new Set(dto.roleIds))
+  //       : [];
+  //   if (roleIds.length > 0) {
+  //     const foundRoles = await this.prisma.role.findMany({
+  //       where: { id: { in: roleIds } },
+  //     });
+  //     if (foundRoles.length !== roleIds.length) {
+  //       throw new BadRequestException(
+  //         'One or more specified role IDs do not exist',
+  //       );
+  //     }
+  //     for (const role of foundRoles) {
+  //       if (role.status !== RoleStatus.Active) {
+  //         throw new BadRequestException(`Role '${role.name}' is inactive`);
+  //       }
+  //     }
+  //   }
 
-    // 2. Validate Assignments if provided
-    if (dto.assignments && dto.assignments.length > 0) {
-      const assignmentPairs = new Set<string>();
+  //   // 2. Validate Assignments if provided
+  //   if (dto.assignments && dto.assignments.length > 0) {
+  //     const assignmentPairs = new Set<string>();
 
-      for (const a of dto.assignments) {
-        // Prevent duplicate (pointId, designationId) in the same request
-        const key = `${a.pointId}-${a.designationId}`;
-        if (assignmentPairs.has(key)) {
-          throw new BadRequestException(
-            `Duplicate assignment for pointId ${a.pointId} and designationId ${a.designationId} in request`,
-          );
-        }
-        assignmentPairs.add(key);
+  //     for (const a of dto.assignments) {
+  //       // Prevent duplicate (pointId, designationId) in the same request
+  //       const key = `${a.pointId}-${a.designationId}`;
+  //       if (assignmentPairs.has(key)) {
+  //         throw new BadRequestException(
+  //           `Duplicate assignment for pointId ${a.pointId} and designationId ${a.designationId} in request`,
+  //         );
+  //       }
+  //       assignmentPairs.add(key);
 
-        // A. Validate Point (HierarchyNode)
-        const node = await this.prisma.hierarchyNode.findUnique({
-          where: { id: a.pointId },
-        });
-        if (!node) {
-          throw new NotFoundException(
-            `Hierarchy node (Point) with ID ${a.pointId} not found`,
-          );
-        }
-        if (node.status !== HierarchyStatus.Active) {
-          throw new BadRequestException(
-            `Hierarchy node '${node.name}' is inactive`,
-          );
-        }
+  //       // A. Validate Point (HierarchyNode)
+  //       const node = await this.prisma.hierarchyNode.findUnique({
+  //         where: { id: a.pointId },
+  //       });
+  //       if (!node) {
+  //         throw new NotFoundException(
+  //           `Hierarchy node (Point) with ID ${a.pointId} not found`,
+  //         );
+  //       }
+  //       if (node.status !== HierarchyStatus.Active) {
+  //         throw new BadRequestException(
+  //           `Hierarchy node '${node.name}' is inactive`,
+  //         );
+  //       }
 
-        // B. Validate Designation
-        const designation = await this.prisma.hierarchyDesignation.findUnique({
-          where: { id: a.designationId },
-        });
-        if (!designation) {
-          throw new NotFoundException(
-            `Designation with ID ${a.designationId} not found`,
-          );
-        }
-        if (designation.status !== HierarchyStatus.Active) {
-          throw new BadRequestException(
-            `Designation '${designation.name}' is inactive`,
-          );
-        }
-        if (designation.level !== node.level) {
-          throw new BadRequestException(
-            `Designation '${designation.name}' is at level '${designation.level}', but point '${node.name}' is at level '${node.level}'. Levels must match.`,
-          );
-        }
+  //       // B. Validate Designation
+  //       const designation = await this.prisma.hierarchyDesignation.findUnique({
+  //         where: { id: a.designationId },
+  //       });
+  //       if (!designation) {
+  //         throw new NotFoundException(
+  //           `Designation with ID ${a.designationId} not found`,
+  //         );
+  //       }
+  //       if (designation.status !== HierarchyStatus.Active) {
+  //         throw new BadRequestException(
+  //           `Designation '${designation.name}' is inactive`,
+  //         );
+  //       }
+  //       if (designation.level !== node.level) {
+  //         throw new BadRequestException(
+  //           `Designation '${designation.name}' is at level '${designation.level}', but point '${node.name}' is at level '${node.level}'. Levels must match.`,
+  //         );
+  //       }
 
-        // C. Validate Reporting Authority if provided
-        if (a.reportingId) {
-          const reportingUser = await this.prisma.user.findUnique({
-            where: { id: a.reportingId },
-          });
-          if (!reportingUser) {
-            throw new NotFoundException(
-              `Reporting authority user with ID ${a.reportingId} not found`,
-            );
-          }
-          if (reportingUser.status !== UserStatus.Active) {
-            throw new BadRequestException(
-              `Reporting authority user '${reportingUser.firstname} ${reportingUser.lastname}' is not active`,
-            );
-          }
+  //       // C. Validate Reporting Authority if provided
+  //       if (a.reportingId) {
+  //         const reportingUser = await this.prisma.user.findUnique({
+  //           where: { id: a.reportingId },
+  //         });
+  //         if (!reportingUser) {
+  //           throw new NotFoundException(
+  //             `Reporting authority user with ID ${a.reportingId} not found`,
+  //           );
+  //         }
+  //         if (reportingUser.status !== UserStatus.Active) {
+  //           throw new BadRequestException(
+  //             `Reporting authority user '${reportingUser.firstname} ${reportingUser.lastname}' is not active`,
+  //           );
+  //         }
 
-          const eligible = await this.isEligibleReportingAuthority(
-            a.pointId,
-            a.reportingId,
-          );
-          if (!eligible) {
-            throw new BadRequestException(
-              `User '${reportingUser.firstname} ${reportingUser.lastname}' (ID: ${a.reportingId}) is not an eligible reporting authority for point '${node.name}'. Reporting authority must be assigned at the same point or in the upper hierarchy.`,
-            );
-          }
-        }
-      }
-    }
+  //         const eligible = await this.isEligibleReportingAuthority(
+  //           a.pointId,
+  //           a.reportingId,
+  //         );
+  //         if (!eligible) {
+  //           throw new BadRequestException(
+  //             `User '${reportingUser.firstname} ${reportingUser.lastname}' (ID: ${a.reportingId}) is not an eligible reporting authority for point '${node.name}'. Reporting authority must be assigned at the same point or in the upper hierarchy.`,
+  //           );
+  //         }
+  //       }
+  //     }
+  //   }
 
-    // 3. Atomic Transaction: User + UserMeta + Roles + Organizational Assignments
-    const { salt, hash } = this.hashPassword(dto.password);
+  //   // 3. Atomic Transaction: User + UserMeta + Roles + Organizational Assignments
+  //   const { salt, hash } = this.hashPassword(dto.password);
 
-    const createdUserId = await this.prisma.$transaction(async (tx) => {
-      const user = await tx.user.create({
-        data: {
-          firstname: dto.firstname.trim(),
-          lastname: (dto.lastname || '').trim(),
-          email,
-          mobile,
-          dialCode: dto.dialCode || '+91',
-          country: dto.country || 'IN',
-          isVerified: true,
-          status: UserStatus.Active,
-          meta: {
-            create: {
-              passwordHash: hash,
-              passwordSalt: salt,
-            },
-          },
-        },
-      });
+  //   const createdUserId = await this.prisma.$transaction(async (tx) => {
+  //     const user = await tx.user.create({
+  //       data: {
+  //         firstname: dto.firstname.trim(),
+  //         lastname: (dto.lastname || '').trim(),
+  //         email,
+  //         mobile,
+  //         dialCode: dto.dialCode || '+91',
+  //         country: dto.country || 'IN',
+  //         isVerified: true,
+  //         status: UserStatus.Active,
+  //         meta: {
+  //           create: {
+  //             passwordHash: hash,
+  //             passwordSalt: salt,
+  //           },
+  //         },
+  //       },
+  //     });
 
-      // Assign Roles
-      if (roleIds.length > 0) {
-        await tx.userRole.createMany({
-          data: roleIds.map((roleId) => ({
-            userId: user.id,
-            roleId,
-          })),
-        });
-      }
+  //     // Assign Roles
+  //     if (roleIds.length > 0) {
+  //       await tx.userRole.createMany({
+  //         data: roleIds.map((roleId) => ({
+  //           userId: user.id,
+  //           roleId,
+  //         })),
+  //       });
+  //     }
 
-      // Assign Organizational Designations
-      if (dto.assignments && dto.assignments.length > 0) {
-        for (const a of dto.assignments) {
-          await tx.userHierarchyDesignation.create({
-            data: {
-              userId: user.id,
-              nodeId: a.pointId,
-              designationId: a.designationId,
-              reportingId: a.reportingId ?? null,
-              isActive: true,
-              assignedAt: new Date(),
-            },
-          });
-        }
-      }
+  //     // Assign Organizational Designations
+  //     if (dto.assignments && dto.assignments.length > 0) {
+  //       for (const a of dto.assignments) {
+  //         await tx.userHierarchyDesignation.create({
+  //           data: {
+  //             userId: user.id,
+  //             nodeId: a.pointId,
+  //             designationId: a.designationId,
+  //             reportingId: a.reportingId ?? null,
+  //             isActive: true,
+  //             assignedAt: new Date(),
+  //           },
+  //         });
+  //       }
+  //     }
 
-      return user.id;
-    });
+  //     return user.id;
+  //   });
 
-    // Invalidate access / privilege caches
-    await this.cacheManager.del(
-      getAccessGuardCacheKey({ id: createdUserId, type: UserType.User }),
-    );
-    await this.cacheManager.del(
-      getPrivilegeGuardCacheKey({ id: createdUserId, type: UserType.User }),
-    );
+  //   // Invalidate access / privilege caches
+  //   await this.cacheManager.del(
+  //     getAccessGuardCacheKey({ id: createdUserId, type: UserType.User }),
+  //   );
+  //   await this.cacheManager.del(
+  //     getPrivilegeGuardCacheKey({ id: createdUserId, type: UserType.User }),
+  //   );
 
-    // Return full onboarded user details
-    return await this.prisma.admin.findUnique({
-      where: { id: createdUserId },
-      include: {
-        roles: {
-          include: {
-            role: true,
-          },
-        },
-        designationAssignments: {
-          where: { isActive: true },
-          include: {
-            node: true,
-            designation: true,
-            reportingTo: {
-              select: {
-                id: true,
-                firstname: true,
-                lastname: true,
-                email: true,
-              },
-            },
-          },
-        },
-      },
-    });
-  }
+  //   // Return full onboarded user details
+  //   return await this.prisma.admin.findUnique({
+  //     where: { id: createdUserId },
+  //     include: {
+  //       roles: {
+  //         include: {
+  //           role: true,
+  //         },
+  //       },
+  //       designationAssignments: {
+  //         where: { isActive: true },
+  //         include: {
+  //           node: true,
+  //           designation: true,
+  //           reportingTo: {
+  //             select: {
+  //               id: true,
+  //               firstname: true,
+  //               lastname: true,
+  //               email: true,
+  //             },
+  //           },
+  //         },
+  //       },
+  //     },
+  //   });
+  // }
 
   // async getOrCreateByGoogle(data: {
   //   googleId: string;
@@ -853,216 +853,39 @@ export class UsersService {
   }
 
   // GET ALL ROLES ASSIGNED TO A USER
-  async getUserRoles(userId: number) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
+  // async getUserRoles(userId: number) {
+  //   const user = await this.prisma.user.findUnique({
+  //     where: { id: userId },
+  //   });
 
-    if (!user) {
-      throw new NotFoundException(`User with ID ${userId} not found`);
-    }
+  //   if (!user) {
+  //     throw new NotFoundException(`User with ID ${userId} not found`);
+  //   }
 
-    const userRoles = await this.prisma.userRole.findMany({
-      where: { userId },
-      include: {
-        role: true,
-      },
-      orderBy: {
-        roleId: 'asc',
-      },
-    });
+  //   const userRoles = await this.prisma.userRole.findMany({
+  //     where: { userId },
+  //     include: {
+  //       role: true,
+  //     },
+  //     orderBy: {
+  //       roleId: 'asc',
+  //     },
+  //   });
 
-    return {
-      userId: user.id,
-      userName: `${user.firstname} ${user.lastname}`.trim(),
-      roles: userRoles.map((ur) => ({
-        ...ur.role,
-        assignedAt: ur.assignedAt,
-      })),
-      total: userRoles.length,
-    };
-  }
+  //   return {
+  //     userId: user.id,
+  //     userName: `${user.firstname} ${user.lastname}`.trim(),
+  //     roles: userRoles.map((ur) => ({
+  //       ...ur.role,
+  //       assignedAt: ur.assignedAt,
+  //     })),
+  //     total: userRoles.length,
+  //   };
+  // }
 
   // ASSIGN A ROLE TO A USER
-  async assignRole(userId: number, roleId: number) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
-
-    if (!user) {
-      throw new NotFoundException(`User with ID ${userId} not found`);
-    }
-
-    const role = await this.prisma.role.findUnique({
-      where: { id: roleId },
-    });
-
-    if (!role) {
-      throw new NotFoundException(`Role with ID ${roleId} not found`);
-    }
-
-    const existing = await this.prisma.userRole.findUnique({
-      where: {
-        userId_roleId: {
-          userId,
-          roleId,
-        },
-      },
-    });
-
-    if (existing) {
-      throw new BadRequestException(
-        `Role '${role.name}' is already assigned to user with ID ${userId}`,
-      );
-    }
-
-    const userRole = await this.prisma.userRole.create({
-      data: {
-        userId,
-        roleId,
-      },
-      include: {
-        role: true,
-      },
-    });
-
-    // Invalidate cached privileges so new permissions take effect immediately
-    await this.cacheManager.del(
-      getPrivilegeGuardCacheKey({ id: userId, type: UserType.User }),
-    );
-
-    return {
-      message: `Role '${role.name}' assigned to user successfully`,
-      userRole: {
-        userId: userRole.userId,
-        roleId: userRole.roleId,
-        role: userRole.role,
-        assignedAt: userRole.assignedAt,
-      },
-    };
-  }
 
   // REMOVE A ROLE FROM A USER
-  async removeRole(userId: number, roleId: number) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
-
-    if (!user) {
-      throw new NotFoundException(`User with ID ${userId} not found`);
-    }
-
-    const role = await this.prisma.role.findUnique({
-      where: { id: roleId },
-    });
-
-    if (!role) {
-      throw new NotFoundException(`Role with ID ${roleId} not found`);
-    }
-
-    const userRole = await this.prisma.userRole.findUnique({
-      where: {
-        userId_roleId: {
-          userId,
-          roleId,
-        },
-      },
-    });
-
-    if (!userRole) {
-      throw new NotFoundException(
-        `Role with ID ${roleId} is not assigned to user with ID ${userId}`,
-      );
-    }
-
-    await this.prisma.userRole.delete({
-      where: {
-        userId_roleId: {
-          userId,
-          roleId,
-        },
-      },
-    });
-
-    // Invalidate cached privileges so removal takes effect immediately
-    await this.cacheManager.del(
-      getPrivilegeGuardCacheKey({ id: userId, type: UserType.User }),
-    );
-
-    return {
-      message: `Role '${role.name}' removed from user successfully`,
-    };
-  }
 
   // GET EFFECTIVE PRIVILEGES OF A USER (UNION OF ALL ASSIGNED ROLES' PRIVILEGES)
-  async getEffectivePrivileges(userId: number) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
-
-    if (!user) {
-      throw new NotFoundException(`User with ID ${userId} not found`);
-    }
-
-    const userRoles = await this.prisma.userRole.findMany({
-      where: { userId },
-      include: {
-        role: {
-          include: {
-            privileges: {
-              include: {
-                privilege: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: {
-        roleId: 'asc',
-      },
-    });
-
-    const privilegeMap = new Map<number, Privilege>();
-    const assignedRoles = userRoles.map((ur) => ({
-      id: ur.role.id,
-      name: ur.role.name,
-    }));
-
-    for (const ur of userRoles) {
-      for (const rp of ur.role.privileges) {
-        if (!privilegeMap.has(rp.privilege.id)) {
-          privilegeMap.set(rp.privilege.id, rp.privilege);
-        }
-      }
-    }
-
-    const effectivePrivileges = Array.from(privilegeMap.values()).sort(
-      (a, b) => a.id - b.id,
-    );
-
-    return {
-      userId: user.id,
-      userName: `${user.firstname} ${user.lastname}`.trim(),
-      roles: assignedRoles,
-      privileges: effectivePrivileges,
-      total: effectivePrivileges.length,
-    };
-  }
-
-  async getMyPrivileges(authUser: AuthenticatedUser) {
-    if (authUser.type === UserType.Admin) {
-      const allPrivileges = await this.prisma.privilege.findMany({
-        orderBy: { id: 'asc' },
-      });
-      return {
-        userId: authUser.id,
-        userName: 'Administrator',
-        roles: [{ id: 0, name: 'Super Administrator' }],
-        privileges: allPrivileges,
-        total: allPrivileges.length,
-      };
-    }
-
-    return await this.getEffectivePrivileges(authUser.id);
-  }
 }
