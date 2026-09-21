@@ -4,7 +4,7 @@ pipeline {
     agent any
 
     stages {
-        stage('Deploy React Frontend') {
+        stage('Deploy React Backend') {
             steps {
                 script {
 
@@ -18,7 +18,7 @@ pipeline {
 
                     if (env.BRANCH_NAME == 'staging') {
 
-                        deployStatic(
+                        deployBackend(
                             server: 'jagrut-server',
                             branch: 'staging'
                         )
