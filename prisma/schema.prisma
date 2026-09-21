@@ -359,6 +359,13 @@ enum DispatchStatus {
   @@map("dispatch_status")
 }
 
+enum DeliveryMethod {
+  Courier @map("courier")
+  Manual  @map("manual")
+
+  @@map("delivery_method")
+}
+
 model DispatchEntry {
   id               Int            @id @default(autoincrement())
   issue            PublishIssue   @relation(fields: [issueId], references: [id], onDelete: Restrict)
@@ -371,6 +378,7 @@ model DispatchEntry {
   dispatchDate     DateTime       @default(now()) @map("dispatch_date")
   trackingLink     String?        @map("tracking_link")
   status           DispatchStatus @default(Dispatched)
+  deliveryMethod   DeliveryMethod @default(Manual) @map("delivery_method")
   receivedQuantity Int?           @map("received_quantity")
   receivedAt       DateTime?      @map("received_at")
   receivedBy       Admin?         @relation("DispatchesReceived", fields: [receivedById], references: [id], onDelete: Restrict)
@@ -384,6 +392,7 @@ model DispatchEntry {
   @@index([fromPointId])
   @@index([toPointId])
   @@index([status])
+  @@index([deliveryMethod])
   @@index([dispatchDate])
   @@index([receivedById])
   @@index([dispatchedById])

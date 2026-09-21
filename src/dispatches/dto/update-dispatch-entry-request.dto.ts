@@ -1,6 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsDate, IsOptional, IsString } from 'class-validator';
+import { IsDate, IsEnum, IsOptional, IsString } from 'class-validator';
+import { DeliveryMethod } from '../../generated/prisma/enums';
 
 export class UpdateDispatchEntryRequestDto {
   @ApiPropertyOptional({
@@ -20,4 +21,22 @@ export class UpdateDispatchEntryRequestDto {
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   trackingLink?: string;
+
+  @ApiPropertyOptional({
+    description: 'Method of parcel delivery (Courier or Manual)',
+    enum: DeliveryMethod,
+  })
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed.toLowerCase() === 'courier') return DeliveryMethod.Courier;
+      if (trimmed.toLowerCase() === 'manual') return DeliveryMethod.Manual;
+    }
+    return value;
+  })
+  @IsEnum(DeliveryMethod, {
+    message: 'deliveryMethod must be either Courier or Manual',
+  })
+  deliveryMethod?: DeliveryMethod;
 }

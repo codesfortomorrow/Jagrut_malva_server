@@ -2,12 +2,14 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
   IsDate,
+  IsEnum,
   IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
   Min,
 } from 'class-validator';
+import { DeliveryMethod } from '../../generated/prisma/enums';
 
 export class ForwardDispatchRequestDto {
   @ApiProperty({
@@ -46,4 +48,23 @@ export class ForwardDispatchRequestDto {
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   trackingLink?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Method of parcel delivery for forwarded consignment (defaults to source dispatch delivery method if omitted)',
+    enum: DeliveryMethod,
+  })
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed.toLowerCase() === 'courier') return DeliveryMethod.Courier;
+      if (trimmed.toLowerCase() === 'manual') return DeliveryMethod.Manual;
+    }
+    return value;
+  })
+  @IsEnum(DeliveryMethod, {
+    message: 'deliveryMethod must be either Courier or Manual',
+  })
+  deliveryMethod?: DeliveryMethod;
 }

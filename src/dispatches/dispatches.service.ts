@@ -124,6 +124,10 @@ export class DispatchesService {
       where.status = query.status;
     }
 
+    if (query.deliveryMethod) {
+      where.deliveryMethod = query.deliveryMethod;
+    }
+
     if (query.search) {
       const search = query.search.trim();
       where.OR = [
@@ -342,6 +346,7 @@ export class DispatchesService {
         dispatchDate: dto.dispatchDate ?? new Date(),
         trackingLink: dto.trackingLink ?? null,
         status: DispatchStatus.Dispatched,
+        deliveryMethod: dto.deliveryMethod,
         dispatchedById: userId ?? null,
       },
       include: DISPATCH_INCLUDE,
@@ -511,6 +516,7 @@ export class DispatchesService {
           dispatchDate: dto.dispatchDate ?? new Date(),
           trackingLink: dto.trackingLink ?? null,
           status: DispatchStatus.Dispatched,
+          deliveryMethod: dto.deliveryMethod ?? sourceDispatch.deliveryMethod,
           dispatchedById: userId ?? null,
         },
         include: DISPATCH_INCLUDE,
@@ -602,6 +608,9 @@ export class DispatchesService {
     const data: Prisma.DispatchEntryUpdateInput = {
       ...(dto.dispatchDate !== undefined && { dispatchDate: dto.dispatchDate }),
       ...(dto.trackingLink !== undefined && { trackingLink: dto.trackingLink }),
+      ...(dto.deliveryMethod !== undefined && {
+        deliveryMethod: dto.deliveryMethod,
+      }),
     };
 
     return await this.prisma.dispatchEntry.update({
