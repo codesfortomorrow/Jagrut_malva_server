@@ -4,13 +4,13 @@ pipeline {
     agent any
 
     stages {
-        stage('Deploy Backend') {
+        stage('Deploy React Frontend') {
             steps {
                 script {
 
                     slackSend(
-                        channel: '#team--devops',
-                        message: "🚀 *Pipeline Started*\n" +
+                        channel: '#proj-jagrut-malwa',
+                        message: "🚀 *CI-CD Pipeline Started*\n" +
                                  "*Project:* ${env.JOB_NAME}\n" +
                                  "*Branch:* ${env.BRANCH_NAME}\n" +
                                  "*Build:* #${env.BUILD_NUMBER}"
@@ -18,7 +18,7 @@ pipeline {
 
                     if (env.BRANCH_NAME == 'staging') {
 
-                        deployBackend(
+                        deployStatic(
                             server: 'jagrut-server',
                             branch: 'staging'
                         )
@@ -38,7 +38,7 @@ pipeline {
 
         success {
             slackSend(
-                channel: '#team--devops',
+                channel:'#proj-jagrut-malwa',
                 message: "✅ *Pipeline SUCCESS*\n" +
                          "*Project:* ${env.JOB_NAME}\n" +
                          "*Branch:* ${env.BRANCH_NAME}\n" +
@@ -48,7 +48,7 @@ pipeline {
 
         failure {
             slackSend(
-                channel: '#team--devops',
+                channel: '#proj-jagrut-malwa',
                 message: "❌ *Pipeline FAILED*\n" +
                          "*Project:* ${env.JOB_NAME}\n" +
                          "*Branch:* ${env.BRANCH_NAME}\n" +
