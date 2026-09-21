@@ -11,7 +11,6 @@ import {
   MinLength,
   ValidateNested,
 } from 'class-validator';
-import { CreateUserAssignmentDto } from 'src/users/dto';
 
 export class CreateAdminAssignmentDto {
   @ApiProperty({
@@ -56,11 +55,11 @@ export class CreateAdminRequestDto {
   @IsString()
   firstname: string;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
     example: 'Sharma',
     description: 'Last name of the user',
   })
-  @IsOptional()
+  @IsNotEmpty({ message: 'lastname is required' })
   @IsString()
   lastname: string;
 
@@ -91,14 +90,15 @@ export class CreateAdminRequestDto {
   @IsString()
   password: string;
 
-  @ApiPropertyOptional({
-    example: [3],
+  @ApiProperty({
+    example: 3,
     description:
-      'Array of Role IDs to assign (e.g. 2 for ORGANIZATION_MEMBER, 3 for MANAGER)',
-    type: [Number],
+      'Role ID to assign (e.g. 2 for ORGANIZATION_MEMBER or 3 for MANAGER)',
+    type: Number,
   })
-  @IsOptional()
-  @IsInt({ each: true, message: 'each roleId must be an integer' })
+  @IsNotEmpty({ message: 'roleId is required' })
+  @IsInt({ message: 'roleId must be an integer' })
+  @Min(1, { message: 'roleId must be a positive integer' })
   @Type(() => Number)
   roleId: number;
 
