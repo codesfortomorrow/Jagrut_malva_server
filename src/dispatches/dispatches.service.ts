@@ -57,7 +57,6 @@ const DISPATCH_INCLUDE = {
       firstname: true,
       lastname: true,
       email: true,
-      username: true,
     },
   },
   dispatchedBy: {
@@ -66,7 +65,6 @@ const DISPATCH_INCLUDE = {
       firstname: true,
       lastname: true,
       email: true,
-      username: true,
     },
   },
 } as const;

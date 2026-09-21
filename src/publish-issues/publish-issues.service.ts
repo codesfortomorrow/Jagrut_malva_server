@@ -147,11 +147,11 @@ export class PublishIssuesService {
         'Cannot create an issue directly in Archived status',
       );
     }
-    if (initialStatus === PublishIssueStatus.Published && !filePath) {
-      throw new BadRequestException(
-        'Cannot publish an issue without an uploaded issue file or cover image',
-      );
-    }
+    // if (initialStatus === PublishIssueStatus.Published && !filePath) {
+    //   throw new BadRequestException(
+    //     'Cannot publish an issue without an uploaded issue file or cover image',
+    //   );
+    // }
 
     try {
       const issue = await this.prisma.publishIssue.create({
