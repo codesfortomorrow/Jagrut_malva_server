@@ -1,6 +1,11 @@
 import { join } from 'node:path';
 import { Cache } from 'cache-manager';
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { adminConfigFactory } from '@Config';
@@ -22,7 +27,29 @@ import { AuthService } from 'src/auth';
 import {
   CreateAdminAssignmentDto,
   CreateAdminRequestDto,
-} from './dto/create-admin-request.dto';
+  GetAdminUsersRequestDto,
+} from './dto';
+
+const ADMIN_USER_INCLUDE: Prisma.AdminInclude = {
+  role: true,
+  designationAssignments: {
+    include: {
+      node: true,
+      designation: true,
+      reportingTo: {
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          email: true,
+          mobile: true,
+          profileImage: true,
+        },
+      },
+    },
+    orderBy: [{ isActive: 'desc' }, { assignedAt: 'desc' }],
+  },
+};
 
 @Injectable()
 export class AdminService {
@@ -422,17 +449,99 @@ export class AdminService {
       },
     });
 
-    data.assignments.map(async (assignment) => {
-      await this.prisma.userHierarchyDesignation.create({
-        data: {
-          userId: adminUser.id,
-          nodeId: assignment.pointId,
-          designationId: assignment.designationId,
-          reportingId: assignment.reportingId,
-        },
-      });
-    });
+    if (data.assignments && data.assignments.length > 0) {
+      await Promise.all(
+        data.assignments.map((assignment) =>
+          this.prisma.userHierarchyDesignation.create({
+            data: {
+              userId: adminUser.id,
+              nodeId: assignment.pointId,
+              designationId: assignment.designationId,
+              reportingId: assignment.reportingId,
+            },
+          }),
+        ),
+      );
+    }
 
     return adminUser;
+  }
+
+  private formatAdminUser(user: any) {
+    return {
+      ...user,
+      profileImage: user.profileImage
+        ? this.getProfileImageUrl(user.profileImage)
+        : null,
+      designationAssignments: (user.designationAssignments || []).map(
+        (assignment: any) => ({
+          ...assignment,
+          reportingTo: assignment.reportingTo
+            ? {
+                ...assignment.reportingTo,
+                profileImage: assignment.reportingTo.profileImage
+                  ? this.getProfileImageUrl(assignment.reportingTo.profileImage)
+                  : null,
+              }
+            : null,
+        }),
+      ),
+    };
+  }
+
+  async findAllUsers(query: GetAdminUsersRequestDto) {
+    const search = query.search?.trim();
+    const where: Prisma.AdminWhereInput = {
+      ...(query.roleId && { roleId: query.roleId }),
+      ...(query.status && { status: query.status }),
+      ...((query.pointId || query.designationId) && {
+        designationAssignments: {
+          some: {
+            isActive: true,
+            ...(query.pointId && { nodeId: query.pointId }),
+            ...(query.designationId && { designationId: query.designationId }),
+          },
+        },
+      }),
+      ...(search && {
+        OR: [
+          { firstname: { contains: search, mode: 'insensitive' } },
+          { lastname: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+          { mobile: { contains: search } },
+        ],
+      }),
+    };
+
+    const skip = query.skip ?? 0;
+    const take = query.take ?? 20;
+
+    const [count, users] = await Promise.all([
+      this.prisma.admin.count({ where }),
+      this.prisma.admin.findMany({
+        where,
+        skip,
+        take,
+        orderBy: { createdAt: 'desc' },
+        include: ADMIN_USER_INCLUDE,
+      }),
+    ]);
+
+    const data = users.map((u) => this.formatAdminUser(u));
+
+    return { count, skip, take, data };
+  }
+
+  async findUserById(id: number) {
+    const user = await this.prisma.admin.findUnique({
+      where: { id },
+      include: ADMIN_USER_INCLUDE,
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+
+    return this.formatAdminUser(user);
   }
 }

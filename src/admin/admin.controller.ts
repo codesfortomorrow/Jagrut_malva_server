@@ -2,12 +2,21 @@ import {
   Body,
   Controller,
   Get,
+  Param,
+  ParseIntPipe,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import {
   AccessGuard,
   AuthenticatedRequest,
@@ -21,10 +30,11 @@ import { AdminService } from './admin.service';
 import {
   AuthenticateRequestDto,
   ChangePasswordRequestDto,
+  CreateAdminRequestDto,
+  GetAdminUsersRequestDto,
   UpdateProfileDetailsRequestDto,
   UpdateProfileImageRequestDto,
 } from './dto';
-import { CreateAdminRequestDto } from './dto/create-admin-request.dto';
 
 @ApiTags('Admin')
 @ApiBearerAuth()
@@ -90,6 +100,18 @@ export class AdminController extends BaseController {
   }
 
   @Post('create-user')
+  @ApiOperation({
+    summary:
+      'Create a new user with role and organizational assignments in a single transaction',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'User created and onboarded successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation failed or duplicate email/mobile',
+  })
   async register(
     @Req() req: AuthenticatedRequest,
     @Body() data: CreateAdminRequestDto,
@@ -106,5 +128,34 @@ export class AdminController extends BaseController {
     });
 
     return response;
+  }
+
+  @Get('users')
+  @ApiOperation({
+    summary:
+      'Retrieve paginated list of users created through admin user creation',
+  })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Paginated list of users with assigned role and hierarchy assignments',
+  })
+  async getUsers(@Query() query: GetAdminUsersRequestDto) {
+    return await this.adminService.findAllUsers(query);
+  }
+
+  @Get('users/:id')
+  @ApiOperation({
+    summary:
+      'Retrieve details of a specific user by ID with roles and assignments',
+  })
+  @ApiParam({ name: 'id', type: Number, description: 'Admin User ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'User details with assigned role and hierarchy assignments',
+  })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async getUserById(@Param('id', ParseIntPipe) id: number) {
+    return await this.adminService.findUserById(id);
   }
 }
