@@ -435,7 +435,7 @@ export class AdminService {
     const adminUser = await this.prisma.admin.create({
       data: {
         firstname: data.firstname,
-        lastname: data.lastname,
+        lastname: (data.lastname || '').trim(),
         email: data.email.toLowerCase(),
         mobile: data.mobile,
         status: AdminStatus.Active,

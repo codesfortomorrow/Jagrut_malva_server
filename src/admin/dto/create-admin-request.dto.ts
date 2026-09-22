@@ -55,13 +55,13 @@ export class CreateAdminRequestDto {
   @IsString()
   firstname: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: 'Sharma',
     description: 'Last name of the user',
   })
-  @IsNotEmpty({ message: 'lastname is required' })
+  @IsOptional()
   @IsString()
-  lastname: string;
+  lastname?: string;
 
   @ApiProperty({
     example: 'manager@example.com',
