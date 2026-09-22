@@ -12,7 +12,8 @@ generator client {
 }
 
 enum AdminStatus {
-  Active @map("active")
+  Active  @map("active")
+  Blocked @map("blocked")
 
   @@map("admin_status")
 }

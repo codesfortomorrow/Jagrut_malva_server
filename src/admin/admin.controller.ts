@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  ParseEnumPipe,
   ParseIntPipe,
   Patch,
   Post,
@@ -27,6 +28,7 @@ import {
   UserType,
 } from '@Common';
 import { AdminService } from './admin.service';
+import { AdminStatus } from '../generated/prisma/enums';
 import {
   AuthenticateRequestDto,
   ChangePasswordRequestDto,
@@ -157,5 +159,28 @@ export class AdminController extends BaseController {
   @ApiResponse({ status: 404, description: 'User not found' })
   async getUserById(@Param('id', ParseIntPipe) id: number) {
     return await this.adminService.findUserById(id);
+  }
+
+  @ApiParam({ name: 'userId', type: Number, description: 'Admin User ID' })
+  @ApiParam({ name: 'status', enum: AdminStatus })
+  @ApiOperation({
+    summary: 'Update status of an Admin user (Active / Blocked)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Admin user status updated successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid status value or user ID',
+  })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  @Post(':userId/:status')
+  async setUserStatus(
+    @Param('userId', ParseIntPipe) userId: number,
+    @Param('status', new ParseEnumPipe(AdminStatus)) status: AdminStatus,
+  ) {
+    await this.adminService.setStatus(userId, status);
+    return { status: 'success' };
   }
 }

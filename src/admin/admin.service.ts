@@ -391,18 +391,6 @@ export class AdminService {
     return admin;
   }
 
-  async setStatus(userId: number, status: AdminStatus): Promise<Admin> {
-    await this.cacheManager.del(
-      getAccessGuardCacheKey({ id: userId, type: UserType.Admin }),
-    );
-    return await this.prisma.admin.update({
-      data: { status },
-      where: {
-        id: userId,
-      },
-    });
-  }
-
   async create(data: CreateAdminRequestDto): Promise<Admin> {
     if (await this.isEmailExist(data.email)) {
       throw new Error('Email already exist');
@@ -543,5 +531,25 @@ export class AdminService {
     }
 
     return this.formatAdminUser(user);
+  }
+
+  async setStatus(userId: number, status: AdminStatus): Promise<Admin> {
+    const admin = await this.prisma.admin.findUnique({
+      where: { id: userId },
+    });
+
+    if (!admin) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
+
+    await this.cacheManager.del(
+      getAccessGuardCacheKey({ id: userId, type: UserType.Admin }),
+    );
+    return await this.prisma.admin.update({
+      data: { status },
+      where: {
+        id: userId,
+      },
+    });
   }
 }
