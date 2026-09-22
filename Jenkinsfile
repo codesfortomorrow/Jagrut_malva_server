@@ -10,11 +10,7 @@ pipeline {
 
                     slackSend(
                         channel: '#proj-jagrut-malwa',
-                        message: "🚀 *CI-CD Pipeline Started*\n" +
-                                 "*Project:* ${env.JOB_NAME}\n" +
-                                 "*Branch:* ${env.BRANCH_NAME}\n" +
-                                 "*Build:* #${env.BUILD_NUMBER}"
-                    )
+                        message: "🚀 *Pipeline Started* | *Project:* ${env.JOB_NAME} | *Branch:* ${env.BRANCH_NAME}"
 
                     if (env.BRANCH_NAME == 'staging') {
 
@@ -39,20 +35,16 @@ pipeline {
         success {
             slackSend(
                 channel:'#proj-jagrut-malwa',
-                message: "✅ *Pipeline SUCCESS*\n" +
-                         "*Project:* ${env.JOB_NAME}\n" +
-                         "*Branch:* ${env.BRANCH_NAME}\n" +
-                         "*Build:* #${env.BUILD_NUMBER}"
+                message: " *Pipeline Sucessful* | *Project:* ${env.JOB_NAME} | *Branch:* ${env.BRANCH_NAME}"
+                
             )
         }
 
         failure {
             slackSend(
                 channel: '#proj-jagrut-malwa',
-                message: "❌ *Pipeline FAILED*\n" +
-                         "*Project:* ${env.JOB_NAME}\n" +
-                         "*Branch:* ${env.BRANCH_NAME}\n" +
-                         "*Build:* #${env.BUILD_NUMBER}"
+                message: "🚀 *Pipeline Failed* | *Project:* ${env.JOB_NAME} | *Branch:* ${env.BRANCH_NAME}"
+              
             )
         }
     }
