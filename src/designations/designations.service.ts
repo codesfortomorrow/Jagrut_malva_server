@@ -25,7 +25,7 @@ const ASSIGNMENT_INCLUDE = {
       firstname: true,
       lastname: true,
       email: true,
-      username: true,
+      mobile: true,
       profileImage: true,
     },
   },
