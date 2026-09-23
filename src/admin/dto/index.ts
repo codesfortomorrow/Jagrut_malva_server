@@ -4,3 +4,4 @@ export * from './change-password-request.dto';
 export * from './authenticate-request.dto';
 export * from './create-admin-request.dto';
 export * from './get-admin-users-request.dto';
+export * from './update-admin-user-request.dto';

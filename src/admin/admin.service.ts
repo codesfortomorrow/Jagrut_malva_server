@@ -28,7 +28,9 @@ import {
   CreateAdminAssignmentDto,
   CreateAdminRequestDto,
   GetAdminUsersRequestDto,
+  UpdateAdminUserRequestDto,
 } from './dto';
+import { ADMIN_ROLE_NAME } from '../roles/privilege-catalog.constant';
 
 const ADMIN_USER_INCLUDE: Prisma.AdminInclude = {
   role: true,
@@ -551,5 +553,245 @@ export class AdminService {
         id: userId,
       },
     });
+  }
+
+  private async isEligibleReportingAuthority(
+    nodeId: number,
+    reportingUserId: number,
+  ): Promise<boolean> {
+    const eligibleNodeIds: number[] = [nodeId];
+    let currentNode = await this.prisma.hierarchyNode.findUnique({
+      where: { id: nodeId },
+      select: { parentId: true },
+    });
+
+    while (currentNode && currentNode.parentId) {
+      eligibleNodeIds.push(currentNode.parentId);
+      currentNode = await this.prisma.hierarchyNode.findUnique({
+        where: { id: currentNode.parentId },
+        select: { parentId: true },
+      });
+    }
+
+    const activeAssignment =
+      await this.prisma.userHierarchyDesignation.findFirst({
+        where: {
+          userId: reportingUserId,
+          nodeId: { in: eligibleNodeIds },
+          isActive: true,
+        },
+      });
+
+    return !!activeAssignment;
+  }
+
+  async updateUser(userId: number, data: UpdateAdminUserRequestDto) {
+    const user = await this.prisma.admin.findUnique({
+      where: { id: userId },
+      include: {
+        designationAssignments: {
+          where: { isActive: true },
+          orderBy: { assignedAt: 'desc' },
+        },
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
+
+    if (data.email) {
+      const email = data.email.trim().toLowerCase();
+      if (await this.isEmailExist(email, userId)) {
+        throw new BadRequestException('Email already exist');
+      }
+    }
+
+    if (data.mobile) {
+      const mobile = data.mobile.trim();
+      if (await this.isMobileExist(mobile, userId)) {
+        throw new BadRequestException('Mobile already exist');
+      }
+    }
+
+    if (data.roleId !== undefined) {
+      const role = await this.prisma.role.findUnique({
+        where: { id: data.roleId },
+      });
+      if (!role) {
+        throw new NotFoundException(`Role with ID ${data.roleId} not found`);
+      }
+      if (role.status !== RoleStatus.Active) {
+        throw new BadRequestException(
+          'Assigned Role is no longer Active, please select an active role',
+        );
+      }
+    }
+
+    let targetAssignments: Array<{
+      pointId: number;
+      designationId: number;
+      reportingId?: number | null;
+    }> | null = null;
+
+    if (data.assignments !== undefined) {
+      targetAssignments = data.assignments;
+    } else if (
+      data.pointId !== undefined ||
+      data.designationId !== undefined ||
+      data.reportingId !== undefined
+    ) {
+      const currentActive = user.designationAssignments[0];
+      const pointId = data.pointId ?? currentActive?.nodeId;
+      const designationId = data.designationId ?? currentActive?.designationId;
+      const reportingId =
+        data.reportingId !== undefined
+          ? data.reportingId
+          : (currentActive?.reportingId ?? null);
+
+      if (!pointId || !designationId) {
+        throw new BadRequestException(
+          'Both Hierarchy Point (pointId) and Designation (designationId) are required to assign a responsibility',
+        );
+      }
+
+      targetAssignments = [{ pointId, designationId, reportingId }];
+    }
+
+    if (targetAssignments !== null && targetAssignments.length > 0) {
+      for (const [index, assignment] of targetAssignments.entries()) {
+        const prefix =
+          targetAssignments.length > 1 ? `Assignment ${index + 1}: ` : '';
+
+        // 1. Validate Point (HierarchyNode)
+        const node = await this.prisma.hierarchyNode.findUnique({
+          where: { id: assignment.pointId },
+        });
+        if (!node) {
+          throw new NotFoundException(
+            `${prefix}Hierarchy node (Point) with ID ${assignment.pointId} not found`,
+          );
+        }
+        if (node.status !== HierarchyStatus.Active) {
+          throw new BadRequestException(
+            `${prefix}Hierarchy node '${node.name}' is not active`,
+          );
+        }
+
+        // 2. Validate Designation
+        const designation = await this.prisma.hierarchyDesignation.findUnique({
+          where: { id: assignment.designationId },
+        });
+        if (!designation) {
+          throw new NotFoundException(
+            `${prefix}Designation with ID ${assignment.designationId} not found`,
+          );
+        }
+        if (designation.status !== HierarchyStatus.Active) {
+          throw new BadRequestException(
+            `${prefix}Designation '${designation.name}' is not active`,
+          );
+        }
+
+        // 3. Level Validation
+        if (designation.level !== node.level) {
+          throw new BadRequestException(
+            `${prefix}Level mismatch: Designation '${designation.name}' is for level '${designation.level}', but Hierarchy Node '${node.name}' is at level '${node.level}'. Levels must match.`,
+          );
+        }
+
+        // 4. Validate Reporting Authority
+        if (assignment.reportingId != null) {
+          if (assignment.reportingId === userId) {
+            throw new BadRequestException(
+              `${prefix}A user cannot be their own reporting authority`,
+            );
+          }
+
+          const reportingUser = await this.prisma.admin.findUnique({
+            where: { id: assignment.reportingId },
+            include: { role: true },
+          });
+
+          if (!reportingUser) {
+            throw new NotFoundException(
+              `${prefix}Reporting authority user with ID ${assignment.reportingId} not found`,
+            );
+          }
+
+          if (reportingUser.status !== AdminStatus.Active) {
+            throw new BadRequestException(
+              `${prefix}Reporting authority user '${reportingUser.firstname} ${reportingUser.lastname}' is not active`,
+            );
+          }
+
+          const eligible = await this.isEligibleReportingAuthority(
+            node.id,
+            assignment.reportingId,
+          );
+          if (!eligible && reportingUser.role?.name !== ADMIN_ROLE_NAME) {
+            throw new BadRequestException(
+              `${prefix}User '${reportingUser.firstname} ${reportingUser.lastname}' (ID: ${assignment.reportingId}) is not an eligible reporting authority for point '${node.name}'. Reporting authority must be assigned at the same point or in the upper hierarchy.`,
+            );
+          }
+        }
+      }
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      const updateData: Prisma.AdminUpdateInput = {};
+      if (data.firstname !== undefined) {
+        updateData.firstname = data.firstname.trim();
+      }
+      if (data.lastname !== undefined) {
+        updateData.lastname = data.lastname.trim();
+      }
+      if (data.email !== undefined) {
+        updateData.email = data.email.trim().toLowerCase();
+      }
+      if (data.mobile !== undefined) {
+        updateData.mobile = data.mobile.trim();
+      }
+      if (data.roleId !== undefined) {
+        updateData.role = { connect: { id: data.roleId } };
+      }
+
+      if (Object.keys(updateData).length > 0) {
+        await tx.admin.update({
+          where: { id: userId },
+          data: updateData,
+        });
+      }
+
+      if (targetAssignments !== null) {
+        await tx.userHierarchyDesignation.updateMany({
+          where: {
+            userId,
+            isActive: true,
+          },
+          data: {
+            isActive: false,
+            unassignedAt: new Date(),
+          },
+        });
+
+        if (targetAssignments.length > 0) {
+          for (const assignment of targetAssignments) {
+            await tx.userHierarchyDesignation.create({
+              data: {
+                userId,
+                nodeId: assignment.pointId,
+                designationId: assignment.designationId,
+                reportingId: assignment.reportingId ?? null,
+                isActive: true,
+                assignedAt: new Date(),
+              },
+            });
+          }
+        }
+      }
+    });
+
+    return await this.findUserById(userId);
   }
 }

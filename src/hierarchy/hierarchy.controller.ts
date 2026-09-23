@@ -1,4 +1,6 @@
+import { Response } from 'express';
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -10,12 +12,19 @@ import {
   Post,
   Put,
   Query,
+  Res,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
   ApiOperation,
   ApiParam,
+  ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
 import {
@@ -72,6 +81,90 @@ export class HierarchyController extends BaseController {
   })
   getTree() {
     return this.hierarchyService.getTree();
+  }
+
+  @RequirePrivilege('hierarchy.view')
+  @Get('export')
+  @ApiOperation({
+    summary:
+      'Export the complete configured Geo Hierarchy as a CSV file in Pre-order DFS format',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'CSV file download containing the full Geo Hierarchy',
+    content: {
+      'text/csv': {
+        schema: {
+          type: 'string',
+          example:
+            'Node_ID,Node_Name,Level,Status,Parent_ID,Parent_Name,Hierarchy_Path,Description\r\n1,Malwa,Prant,Active,,,Malwa,Root Prant',
+        },
+      },
+    },
+  })
+  async exportCsv(@Res() res: Response) {
+    const csv = await this.hierarchyService.exportHierarchyCsv();
+    const filename = `geo_hierarchy_export_${Date.now()}.csv`;
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    return res.status(200).send(csv);
+  }
+
+  @RequirePrivilege('hierarchy.create')
+  @Post('import')
+  @ApiOperation({
+    summary:
+      'Import complete Geo Hierarchy structure through a single CSV file with two-phase validation',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'CSV file containing Geo Hierarchy records (max 10MB)',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Geo Hierarchy imported successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      'Validation failed: invalid file, structural mismatch, duplicate node, or invalid parent',
+  })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
+      fileFilter: (req, file, cb) => {
+        if (
+          file.mimetype === 'text/csv' ||
+          file.mimetype === 'application/vnd.ms-excel' ||
+          file.originalname.toLowerCase().endsWith('.csv')
+        ) {
+          cb(null, true);
+        } else {
+          cb(
+            new BadRequestException(
+              'Invalid file type. Only CSV files (.csv) are allowed.',
+            ),
+            false,
+          );
+        }
+      },
+    }),
+  )
+  async importCsv(@UploadedFile() file: Express.Multer.File) {
+    if (!file || !file.buffer) {
+      throw new BadRequestException('CSV file is required.');
+    }
+    return await this.hierarchyService.importHierarchyCsv(file.buffer);
   }
 
   @RequirePrivilege('hierarchy.view')

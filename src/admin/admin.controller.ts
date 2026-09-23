@@ -34,6 +34,7 @@ import {
   ChangePasswordRequestDto,
   CreateAdminRequestDto,
   GetAdminUsersRequestDto,
+  UpdateAdminUserRequestDto,
   UpdateProfileDetailsRequestDto,
   UpdateProfileImageRequestDto,
 } from './dto';
@@ -159,6 +160,32 @@ export class AdminController extends BaseController {
   @ApiResponse({ status: 404, description: 'User not found' })
   async getUserById(@Param('id', ParseIntPipe) id: number) {
     return await this.adminService.findUserById(id);
+  }
+
+  @Patch('users/:id')
+  @ApiOperation({
+    summary: "Edit an Admin user's profile and organizational details",
+  })
+  @ApiParam({ name: 'id', type: Number, description: 'Admin User ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Admin user details updated successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      'Validation failed, level mismatch, self-reporting, ineligible reporting authority, or email/mobile already exists',
+  })
+  @ApiResponse({
+    status: 404,
+    description:
+      'User, role, designation, hierarchy point, or reporting authority not found',
+  })
+  async updateUser(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() data: UpdateAdminUserRequestDto,
+  ) {
+    return await this.adminService.updateUser(id, data);
   }
 
   @ApiParam({ name: 'userId', type: Number, description: 'Admin User ID' })

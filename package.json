@@ -75,6 +75,8 @@
     "class-validator": "^0.14.3",
     "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",
+    "csv-parse": "^7.0.2",
+    "csv-stringify": "^6.8.3",
     "dayjs": "^1.11.19",
     "dotenv": "^17.2.3",
     "helmet": "^8.1.0",
