@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma';
-import { ConsumerStatus, Prisma } from '../generated/prisma/client';
+import { Prisma, UserStatus } from '../generated/prisma/client';
 import {
   CreateConsumerRequestDto,
   GetConsumersRequestDto,
@@ -161,7 +161,7 @@ export class ConsumersService {
     });
   }
 
-  async setStatus(id: number, status: ConsumerStatus) {
+  async setStatus(id: number, status: UserStatus) {
     await this.findOne(id);
     return this.prisma.consumer.update({
       where: { id },

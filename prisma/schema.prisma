@@ -50,6 +50,7 @@ model Admin {
   designationAssignments UserHierarchyDesignation[] @relation("UserAssignments")
   subordinateAssignments UserHierarchyDesignation[] @relation("ReportingManager")
   publishedIssues        PublishIssue[]             @relation("PublishedIssues")
+  registeredConsumers    Consumer[]                 @relation("RegisteredConsumers")
 
   @@map("admin")
 }
@@ -63,6 +64,8 @@ model AdminMeta {
   @@map("admin_meta")
 }
 
+// ─── User (app user / account) ────────────────────────────────────────────────
+
 enum UserStatus {
   Active  @map("active")
   Blocked @map("blocked")
@@ -71,22 +74,21 @@ enum UserStatus {
 }
 
 model User {
-  id                  Int           @id @default(autoincrement())
-  firstname           String
-  lastname            String
-  username            String?       @unique
-  email               String        @unique
-  dialCode            String?       @map("dial_code")
-  mobile              String?       @unique
-  profileImage        String?       @map("profile_image")
-  isVerified          Boolean       @default(false) @map("is_verified")
-  country             String?
-  status              UserStatus    @default(Active)
-  createdAt           DateTime      @default(now()) @map("created_at")
-  updatedAt           DateTime      @updatedAt @map("updated_at")
-  meta                UserMeta?
-  settings            UserSetting[]
-  registeredConsumers Consumer[]    @relation("RegisteredConsumers")
+  id           Int           @id @default(autoincrement())
+  firstname    String
+  lastname     String
+  username     String?       @unique
+  email        String        @unique
+  dialCode     String?       @map("dial_code")
+  mobile       String?       @unique
+  profileImage String?       @map("profile_image")
+  isVerified   Boolean       @default(false) @map("is_verified")
+  country      String?
+  status       UserStatus    @default(Active)
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  meta         UserMeta?
+  settings     UserSetting[]
 
   @@map("user")
 }
@@ -402,8 +404,8 @@ model DispatchEntry {
 // ─── Jagrut Malwa: Consumer Module ───────────────────────────────────────────
 
 enum ConsumerStatus {
-  Active   @map("active")
-  InActive @map("inactive")
+  Active  @map("active")
+  Blocked @map("blocked")
 
   @@map("consumer_status")
 }
@@ -429,11 +431,13 @@ model Consumer {
   gramId           Int            @map("gram_id")
   registrarName    String         @map("registrar_name")
   registrarMobile  String         @map("registrar_mobile")
-  registeredBy     User?          @relation("RegisteredConsumers", fields: [registeredById], references: [id], onDelete: SetNull)
+  registeredBy     Admin?         @relation("RegisteredConsumers", fields: [registeredById], references: [id], onDelete: SetNull)
   registeredById   Int?           @map("registered_by_id")
   status           ConsumerStatus @default(Active)
-  createdAt        DateTime       @default(now()) @map("created_at")
-  updatedAt        DateTime       @updatedAt @map("updated_at")
+
+  subscriptions Subscription[]
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
 
   @@index([whatsappMobile])
   @@index([jilaId])
@@ -443,4 +447,46 @@ model Consumer {
   @@index([registeredById])
   @@index([status])
   @@map("consumer")
+}
+
+// ─── Jagrut Malwa: Subscription Module ────────────────────────────────────────
+
+enum PaymentMode {
+  UPI          @map("upi")
+  Cash         @map("cash")
+  Cheque       @map("cheque")
+  BankTransfer @map("bank_transfer")
+  Card         @map("card")
+
+  @@map("payment_mode")
+}
+
+enum SubscriptionPlan {
+  Monthly @map("monthly")
+  Yearly  @map("yearly")
+
+  @@map("subscription_plan")
+}
+
+model Subscription {
+  id          Int              @id @default(autoincrement())
+  plan        SubscriptionPlan
+  startDate   DateTime         @map("start_date")
+  endDate     DateTime         @map("end_date")
+  utrNumber   String?          @map("utr_number")
+  paymentMode PaymentMode      @map("payment_mode")
+  remarks     String           @default("")
+  externalId  Int? // third party mapping id
+  isActive    Boolean          @default(false) @map("is_active")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  consumer   Consumer @relation(fields: [consumerId], references: [id], onDelete: Restrict)
+  consumerId Int      @map("consumer_id")
+
+  @@index([consumerId])
+  @@index([isActive])
+  @@index([endDate])
+  @@index([consumerId, isActive])
+  @@map("subscription")
 }
