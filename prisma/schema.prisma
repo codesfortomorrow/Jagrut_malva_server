@@ -347,7 +347,6 @@ model PublishIssue {
 // ─── Jagrut Malwa: Dispatch Module ────────────────────────────────────────────
 
 enum DispatchStatus {
-  Draft       @map("draft")
   Dispatched  @map("dispatched")
   InTransit   @map("in_transit")
   Received    @map("received")

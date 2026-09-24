@@ -19,6 +19,7 @@ import { PublishIssuesModule } from './publish-issues';
 import { DispatchesModule } from './dispatches';
 import { DesignationsModule } from './designations';
 import { ConsumersModule } from './consumers';
+import { DashboardModule } from './dashboard';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { ConsumersModule } from './consumers';
     DispatchesModule,
     DesignationsModule,
     ConsumersModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [
