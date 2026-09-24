@@ -1,20 +1,18 @@
 import { Prisma, RoleType } from '../../src/generated/prisma/client';
 import {
   ADMIN_ROLE_NAME,
+  MANAGER_ROLE_NAME,
+  EDITOR_ROLE_NAME,
   ORGANIZATION_MEMBER_ROLE_NAME,
+  ADMIN_PRIVILEGES,
+  MANAGER_PRIVILEGES,
+  EDITOR_PRIVILEGES,
   ORGANIZATION_MEMBER_DEFAULT_PRIVILEGES,
-  PRIVILEGE_CATALOG,
 } from '../../src/roles/privilege-catalog.constant';
 
 const connectPrivileges = (keys: string[]) => ({
   create: keys.map((key) => ({ privilege: { connect: { key } } })),
 });
-
-function privilegesForModules(modules: string[]): string[] {
-  return PRIVILEGE_CATALOG.filter((p) => modules.includes(p.module)).map(
-    (p) => p.key,
-  );
-}
 
 export const systemRoles: Prisma.RoleCreateInput[] = [
   {
@@ -23,7 +21,7 @@ export const systemRoles: Prisma.RoleCreateInput[] = [
       'Full access to every module. Reserved for the top-level administrator.',
     type: RoleType.System,
     isProtected: true,
-    privileges: connectPrivileges(PRIVILEGE_CATALOG.map((p) => p.key)),
+    privileges: connectPrivileges(ADMIN_PRIVILEGES),
   },
   {
     name: ORGANIZATION_MEMBER_ROLE_NAME,
@@ -37,29 +35,19 @@ export const systemRoles: Prisma.RoleCreateInput[] = [
 
 export const businessRoles: Prisma.RoleCreateInput[] = [
   {
-    name: 'MANAGER',
+    name: MANAGER_ROLE_NAME,
     description:
-      'Manager with broad operational access: hierarchy, data, content, and users.',
+      'Manager with broad operational access: hierarchy, admin users, dispatches, and dashboard. No delete permissions.',
     type: RoleType.Custom,
     isProtected: false,
-    privileges: connectPrivileges(
-      privilegesForModules([
-        'dashboard',
-        'geo_unit',
-        'data',
-        'content',
-        'users',
-      ]),
-    ),
+    privileges: connectPrivileges(MANAGER_PRIVILEGES),
   },
   {
-    name: 'EDITOR',
+    name: EDITOR_ROLE_NAME,
     description:
-      'Editor with access to content workflow: viewing, searching, approving, and publishing.',
+      'Editor with access to content workflow: hierarchy view/edit, patrika distribution, and user registration.',
     type: RoleType.Custom,
     isProtected: false,
-    privileges: connectPrivileges(
-      privilegesForModules(['dashboard', 'content']),
-    ),
+    privileges: connectPrivileges(EDITOR_PRIVILEGES),
   },
 ];

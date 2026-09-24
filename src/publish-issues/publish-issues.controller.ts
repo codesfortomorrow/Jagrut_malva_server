@@ -140,7 +140,7 @@ export class PublishIssuesController extends BaseController {
     return this.publishIssuesService.update(id, dto, file, userId);
   }
 
-  @RequirePrivilege('publish_issues.delete')
+  @RequirePrivilege('publish_issues.delete', 'publish_issues.view')
   @Delete(':id')
   @ApiOperation({
     summary: 'Delete a publish issue (must have no associated dispatches)',

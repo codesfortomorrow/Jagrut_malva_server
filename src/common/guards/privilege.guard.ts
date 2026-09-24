@@ -15,6 +15,7 @@ import { AuthenticatedUser, UserType } from '../types';
 import {
   ADMIN_ROLE_NAME,
   PRIVILEGE_CATALOG,
+  resolvePrivilegeKeys,
 } from '../../roles/privilege-catalog.constant';
 
 export const getPrivilegeGuardCacheKey = (user: { id: number; type: string }) =>
@@ -52,7 +53,10 @@ export class PrivilegeGuard implements CanActivate {
 
     const privileges = await this.getUserPrivileges(user);
 
-    const hasAny = requiredPrivileges.some((key) => privileges.has(key));
+    const hasAny = requiredPrivileges.some((reqKey) => {
+      const candidates = resolvePrivilegeKeys(reqKey);
+      return candidates.some((k) => privileges.has(k));
+    });
     if (!hasAny) {
       throw new ForbiddenException('Access denied: insufficient privileges');
     }
@@ -86,14 +90,26 @@ export class PrivilegeGuard implements CanActivate {
       });
 
       if (admin?.role && (admin.role as any).status !== 'InActive') {
-        if (admin.role.name === ADMIN_ROLE_NAME) {
+        const roleName = admin.role.name?.trim().toUpperCase();
+        if (
+          roleName === ADMIN_ROLE_NAME.toUpperCase() ||
+          roleName === 'ADMIN'
+        ) {
           // Only the actual ADMIN role gets every privilege in the catalog.
           for (const p of PRIVILEGE_CATALOG) {
             keys.add(p.key);
+            for (const alias of resolvePrivilegeKeys(p.key)) {
+              keys.add(alias);
+            }
           }
         } else {
           for (const rp of admin.role.privileges) {
-            if (rp.privilege?.key) keys.add(rp.privilege.key);
+            if (rp.privilege?.key) {
+              keys.add(rp.privilege.key);
+              for (const alias of resolvePrivilegeKeys(rp.privilege.key)) {
+                keys.add(alias);
+              }
+            }
           }
         }
       }

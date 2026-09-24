@@ -30,44 +30,51 @@ async function main() {
   }
   console.log(`✔ Seeded ${privileges.length} privileges`);
 
-  // ── System Roles — upsert on every run ──────────────────────────────────────
-  for (const roleData of systemRoles) {
-    const existing = await prisma.role.findUnique({
+  // ── Sync All Roles & Privileges according to spec ───────────────────────────
+  const allRoles = [...systemRoles, ...businessRoles];
+  for (const roleData of allRoles) {
+    let role = await prisma.role.findUnique({
       where: { name: roleData.name },
     });
 
-    if (!existing) {
-      await prisma.role.create({ data: roleData });
-    } else if (roleData.name === ADMIN_ROLE_NAME) {
-      for (const privilege of privileges) {
-        const found = await prisma.privilege.findUniqueOrThrow({
-          where: { key: privilege.key },
-        });
+    if (!role) {
+      role = await prisma.role.create({
+        data: {
+          name: roleData.name,
+          description: roleData.description,
+          type: roleData.type,
+          isProtected: roleData.isProtected,
+        },
+      });
+    }
+
+    // Connect privileges specified in roleData
+    const targetPrivilegeKeys =
+      roleData.name === ADMIN_ROLE_NAME
+        ? privileges.map((p) => p.key)
+        : (roleData.privileges?.create as any[])?.map(
+            (p: any) => p.privilege.connect.key,
+          ) || [];
+
+    for (const key of targetPrivilegeKeys) {
+      const found = await prisma.privilege.findUnique({
+        where: { key },
+      });
+      if (found) {
         await prisma.rolePrivilege.upsert({
           where: {
             roleId_privilegeId: {
-              roleId: existing.id,
+              roleId: role.id,
               privilegeId: found.id,
             },
           },
           update: {},
-          create: { roleId: existing.id, privilegeId: found.id },
+          create: { roleId: role.id, privilegeId: found.id },
         });
       }
     }
   }
-  console.log(`✔ Seeded ${systemRoles.length} system roles`);
-
-  // ── Business Roles — create once, never re-sync ─────────────────────────────
-  for (const roleData of businessRoles) {
-    const existing = await prisma.role.findUnique({
-      where: { name: roleData.name },
-    });
-    if (!existing) {
-      await prisma.role.create({ data: roleData });
-    }
-  }
-  console.log(`✔ Seeded ${businessRoles.length} business roles`);
+  console.log(`✔ Synced ${allRoles.length} roles and their privileges`);
 
   if (await prisma.admin.count()) {
     console.log('⚠ Skipping seed for `admin`, due to non-empty table');

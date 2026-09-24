@@ -51,7 +51,7 @@ export class DesignationsController extends BaseController {
   // 1. DESIGNATION MASTER DATA (Core CRUD)
   // ─────────────────────────────────────────────────────────────────────────────
 
-  @RequirePrivilege('designations.create')
+  @RequirePrivilege('designation.create')
   @Post()
   @ApiOperation({
     summary:
@@ -61,7 +61,7 @@ export class DesignationsController extends BaseController {
     return this.designationsService.create(dto);
   }
 
-  @RequirePrivilege('designations.view')
+  @RequirePrivilege('designation.view')
   @Get()
   @ApiOperation({
     summary:
@@ -76,7 +76,7 @@ export class DesignationsController extends BaseController {
   // Declared before parameterized ':id' routes to prevent route collisions
   // ─────────────────────────────────────────────────────────────────────────────
 
-  @RequirePrivilege('designations.assign')
+  @RequirePrivilege('designation.assign')
   @Post('assignments')
   @ApiOperation({
     summary:
@@ -86,7 +86,7 @@ export class DesignationsController extends BaseController {
     return this.designationsService.assignUser(dto);
   }
 
-  @RequirePrivilege('designations.view')
+  @RequirePrivilege('designation.view')
   @Get('assignments')
   @ApiOperation({
     summary:
@@ -96,7 +96,7 @@ export class DesignationsController extends BaseController {
     return this.designationsService.findAllAssignments(filter);
   }
 
-  @RequirePrivilege('designations.assign')
+  @RequirePrivilege('designation.assign')
   @Post('assignments/reassign')
   @ApiOperation({
     summary:
@@ -106,7 +106,7 @@ export class DesignationsController extends BaseController {
     return this.designationsService.reassign(dto);
   }
 
-  @RequirePrivilege('designations.view')
+  @RequirePrivilege('designation.view')
   @Get('assignments/:assignmentId')
   @ApiOperation({ summary: 'Get a specific user-designation assignment by ID' })
   @ApiParam({ name: 'assignmentId', type: Number })
@@ -116,7 +116,7 @@ export class DesignationsController extends BaseController {
     return this.designationsService.findAssignmentById(assignmentId);
   }
 
-  @RequirePrivilege('designations.assign')
+  @RequirePrivilege('designation.assign')
   @Patch('assignments/:assignmentId/unassign')
   @ApiOperation({
     summary:
@@ -131,7 +131,7 @@ export class DesignationsController extends BaseController {
   // 3. DESIGNATION MASTER DETAILS & MODIFICATIONS (By ID)
   // ─────────────────────────────────────────────────────────────────────────────
 
-  @RequirePrivilege('designations.view')
+  @RequirePrivilege('designation.view')
   @Get(':id')
   @ApiOperation({ summary: 'Get a single designation by ID' })
   @ApiParam({ name: 'id', type: Number })
@@ -139,7 +139,7 @@ export class DesignationsController extends BaseController {
     return this.designationsService.findOne(id);
   }
 
-  @RequirePrivilege('designations.edit')
+  @RequirePrivilege('designation.edit')
   @Put(':id')
   @ApiOperation({
     summary: 'Update designation name or description (level is immutable)',
@@ -152,7 +152,7 @@ export class DesignationsController extends BaseController {
     return this.designationsService.update(id, dto);
   }
 
-  @RequirePrivilege('designations.edit')
+  @RequirePrivilege('designation.edit')
   @Patch(':id/:status')
   @ApiOperation({ summary: 'Activate or deactivate a designation' })
   @ApiParam({ name: 'id', type: Number })
@@ -165,7 +165,7 @@ export class DesignationsController extends BaseController {
     return this.designationsService.setStatus(id, status);
   }
 
-  @RequirePrivilege('designations.delete')
+  @RequirePrivilege('designation.delete')
   @Delete(':id')
   @ApiOperation({
     summary:

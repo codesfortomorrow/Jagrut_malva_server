@@ -43,7 +43,7 @@ export class RolesController extends BaseController {
     super();
   }
 
-  @RequirePrivilege('roles.manage')
+  @RequirePrivilege('roles.create')
   @Post()
   @ApiOperation({
     summary: 'Create a new custom role with privilege keys',
@@ -52,7 +52,7 @@ export class RolesController extends BaseController {
     return this.rolesService.createRole(dto);
   }
 
-  @RequirePrivilege('roles.manage')
+  @RequirePrivilege('roles.view')
   @Get()
   @ApiOperation({ summary: 'List roles with optional search and pagination' })
   listRoles(@Query() query: GetRolesRequestDto) {
@@ -61,7 +61,7 @@ export class RolesController extends BaseController {
 
   // ── Privilege Catalog ──────────────────────────────────────────────────────
 
-  @RequirePrivilege('roles.manage')
+  @RequirePrivilege('privileges.view', 'roles.view')
   @Get('privileges')
   @ApiOperation({
     summary: 'Get the full privilege catalog grouped by module',
@@ -77,7 +77,7 @@ export class RolesController extends BaseController {
 
   // ── Role Detail & Operations (By ID) ────────────────────────────────────────
 
-  @RequirePrivilege('roles.manage')
+  @RequirePrivilege('roles.view')
   @Get(':id')
   @ApiOperation({ summary: 'Get a single role by ID' })
   @ApiParam({ name: 'id', type: Number })
@@ -85,7 +85,7 @@ export class RolesController extends BaseController {
     return this.rolesService.getRole(id);
   }
 
-  @RequirePrivilege('roles.manage')
+  @RequirePrivilege('roles.edit')
   @Put(':id')
   @ApiOperation({
     summary:
@@ -99,7 +99,7 @@ export class RolesController extends BaseController {
     return this.rolesService.updateRole(id, dto);
   }
 
-  @RequirePrivilege('roles.manage')
+  @RequirePrivilege('roles.edit')
   @ApiParam({ name: 'status', enum: RoleStatus })
   @Patch(':id/:status')
   @ApiOperation({ summary: 'Activate or deactivate a custom role' })
@@ -110,7 +110,7 @@ export class RolesController extends BaseController {
     return this.rolesService.setStatus(id, status);
   }
 
-  @RequirePrivilege('roles.manage')
+  @RequirePrivilege('roles.delete')
   @Delete(':id')
   @ApiOperation({
     summary: 'Delete a custom role (must have no assigned users)',

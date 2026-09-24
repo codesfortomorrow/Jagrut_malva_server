@@ -105,7 +105,7 @@ export class DispatchesService {
     return dispatch;
   }
 
-  async findAll(query: GetDispatchesRequestDto) {
+  async findAll(query: GetDispatchesRequestDto, user: AuthenticatedUser) {
     const where: Prisma.DispatchEntryWhereInput = {};
 
     if (query.issueId) {
@@ -130,10 +130,30 @@ export class DispatchesService {
 
     if (query.search) {
       const search = query.search.trim();
+
       where.OR = [
-        { trackingLink: { contains: search, mode: 'insensitive' } },
-        { issue: { issueNo: { contains: search, mode: 'insensitive' } } },
-        { issue: { title: { contains: search, mode: 'insensitive' } } },
+        {
+          trackingLink: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          issue: {
+            issueNo: {
+              contains: search,
+              mode: 'insensitive',
+            },
+          },
+        },
+        {
+          issue: {
+            title: {
+              contains: search,
+              mode: 'insensitive',
+            },
+          },
+        },
       ];
     }
 
@@ -144,7 +164,80 @@ export class DispatchesService {
       };
     }
 
-    const count = await this.prisma.dispatchEntry.count({ where });
+    /*
+     * Dispatch visibility:
+     *
+     * Admin:
+     * - Can see all dispatch entries.
+     *
+     * Non-admin:
+     * - Can see dispatches created by himself.
+     * - Can see pending incoming dispatches where the destination
+     *   matches his active hierarchy assignment.
+     * - Own dispatched entries are excluded from the receiver side.
+     */
+    if (user.type !== UserType.Admin) {
+      const activeAssignment =
+        await this.prisma.userHierarchyDesignation.findFirst({
+          where: {
+            userId: user.id,
+            isActive: true,
+          },
+          select: {
+            nodeId: true,
+          },
+          orderBy: {
+            assignedAt: 'desc',
+          },
+        });
+
+      if (!activeAssignment) {
+        return {
+          count: 0,
+          skip: query.skip ?? 0,
+          take: query.take ?? 20,
+          data: [],
+        };
+      }
+
+      const visibilityFilter: Prisma.DispatchEntryWhereInput = {
+        OR: [
+          // Dispatcher can see his own dispatches.
+          {
+            dispatchedById: user.id,
+          },
+
+          // Receiver can see only pending incoming dispatches
+          // addressed to his assigned hierarchy node.
+          {
+            toPointId: activeAssignment.nodeId,
+            dispatchedById: {
+              not: user.id,
+            },
+            status: {
+              in: [DispatchStatus.Dispatched, DispatchStatus.InTransit],
+            },
+          },
+        ],
+      };
+
+      /*
+       * If search OR already exists, combine the visibility filter
+       * with the existing filters using AND.
+       */
+      const existingOr = where.OR;
+
+      delete where.OR;
+
+      where.AND = [
+        visibilityFilter,
+        ...(existingOr ? [{ OR: existingOr }] : []),
+      ];
+    }
+
+    const count = await this.prisma.dispatchEntry.count({
+      where,
+    });
 
     const skip = query.skip ?? 0;
     const take = query.take ?? 20;
@@ -157,7 +250,12 @@ export class DispatchesService {
       include: DISPATCH_INCLUDE,
     });
 
-    return { count, skip, take, data };
+    return {
+      count,
+      skip,
+      take,
+      data,
+    };
   }
 
   async getChainOfCustody(issueId: number) {
@@ -246,6 +344,7 @@ export class DispatchesService {
         (sum, d) => sum + d.quantity,
         0,
       );
+
       const availableCentral = issue.totalCopies - alreadyDispatched;
 
       if (dto.quantity > availableCentral) {
@@ -286,12 +385,13 @@ export class DispatchesService {
         );
       }
 
-      // Flexible Branch / Ancestry Validation (allows direct downstream branch jumps)
+      // Flexible Branch / Ancestry Validation
       if (toPoint.parentId !== fromPoint.id) {
         const isDescendant = await this.isDescendantOf(
           toPoint.id,
           fromPoint.id,
         );
+
         if (!isDescendant) {
           throw new BadRequestException(
             `Destination point '${toPoint.name}' is not within the geographic branch of source point '${fromPoint.name}'`,
@@ -300,10 +400,8 @@ export class DispatchesService {
       }
 
       // 4. Upstream Receipt Rule Validation
-      // 4. Upstream Receipt Rule Validation
-      // Allow top-level Prant (root) nodes to originate downstream dispatches
-      // without requiring a prior upstream receipt. This treats a root node
-      // as an origin for its branch in the hierarchy.
+      // Allow top-level Prant root nodes to originate downstream dispatches
+      // without requiring a prior upstream receipt.
       if (
         !(
           fromPoint.level === HierarchyLevel.Prant &&
@@ -326,7 +424,9 @@ export class DispatchesService {
         issueId: dto.issueId,
         fromPointId: dto.fromPointId ?? null,
         toPointId: dto.toPointId,
-        status: { in: [DispatchStatus.Dispatched, DispatchStatus.InTransit] },
+        status: {
+          in: [DispatchStatus.Dispatched, DispatchStatus.InTransit],
+        },
       },
     });
 
@@ -383,6 +483,46 @@ export class DispatchesService {
     ) {
       throw new BadRequestException(
         `Cannot receive dispatch in '${dispatch.status}' status. Only Dispatched or InTransit consignments can be received.`,
+      );
+    }
+
+    /*
+     * Only the user assigned to the destination hierarchy node
+     * can receive the dispatch.
+     */
+    const activeAssignment =
+      await this.prisma.userHierarchyDesignation.findFirst({
+        where: {
+          userId,
+          isActive: true,
+        },
+        select: {
+          nodeId: true,
+        },
+        orderBy: {
+          assignedAt: 'desc',
+        },
+      });
+
+    if (!activeAssignment) {
+      throw new BadRequestException(
+        'No active hierarchy assignment found for current user',
+      );
+    }
+
+    if (activeAssignment.nodeId !== dispatch.toPointId) {
+      throw new BadRequestException(
+        'You are not authorized to receive this dispatch. The dispatch destination does not match your assigned hierarchy node.',
+      );
+    }
+
+    /*
+     * The user who dispatched a consignment cannot receive
+     * the same consignment.
+     */
+    if (dispatch.dispatchedById === userId) {
+      throw new BadRequestException(
+        'The user who dispatched the consignment cannot receive the same consignment.',
       );
     }
 
@@ -467,12 +607,13 @@ export class DispatchesService {
       );
     }
 
-    // Flexible Branch / Ancestry Validation (allows direct downstream branch jumps)
+    // Flexible Branch / Ancestry Validation
     if (toPoint.parentId !== sourcePoint.id) {
       const isDescendant = await this.isDescendantOf(
         toPoint.id,
         sourcePoint.id,
       );
+
       if (!isDescendant) {
         throw new BadRequestException(
           `Destination '${toPoint.name}' is not within the geographic branch of source point '${sourcePoint.name}'`,
@@ -495,7 +636,9 @@ export class DispatchesService {
         issueId: sourceDispatch.issueId,
         fromPointId: sourcePoint.id,
         toPointId: dto.toPointId,
-        status: { in: [DispatchStatus.Dispatched, DispatchStatus.InTransit] },
+        status: {
+          in: [DispatchStatus.Dispatched, DispatchStatus.InTransit],
+        },
       },
     });
 
@@ -526,7 +669,9 @@ export class DispatchesService {
       if (sourceDispatch.status !== DispatchStatus.Forwarded) {
         await tx.dispatchEntry.update({
           where: { id: sourceDispatch.id },
-          data: { status: DispatchStatus.Forwarded },
+          data: {
+            status: DispatchStatus.Forwarded,
+          },
         });
       }
 
@@ -554,7 +699,9 @@ export class DispatchesService {
 
     return await this.prisma.dispatchEntry.update({
       where: { id },
-      data: { status: DispatchStatus.Cancelled },
+      data: {
+        status: DispatchStatus.Cancelled,
+      },
       include: DISPATCH_INCLUDE,
     });
   }
@@ -570,8 +717,7 @@ export class DispatchesService {
       throw new BadRequestException('Cannot complete a cancelled dispatch');
     }
 
-    // A dispatch can only complete if it has fulfilled its downstream lifecycle:
-    // Either it was Forwarded, or it is at the terminal Gram level and was Received/Discrepancy
+    // A dispatch can only complete if it has fulfilled its downstream lifecycle.
     const isLeafReceived =
       dispatch.toPoint.level === HierarchyLevel.Gram &&
       (dispatch.status === DispatchStatus.Received ||
@@ -585,7 +731,9 @@ export class DispatchesService {
 
     return await this.prisma.dispatchEntry.update({
       where: { id },
-      data: { status: DispatchStatus.Completed },
+      data: {
+        status: DispatchStatus.Completed,
+      },
       include: DISPATCH_INCLUDE,
     });
   }
@@ -606,8 +754,12 @@ export class DispatchesService {
     }
 
     const data: Prisma.DispatchEntryUpdateInput = {
-      ...(dto.dispatchDate !== undefined && { dispatchDate: dto.dispatchDate }),
-      ...(dto.trackingLink !== undefined && { trackingLink: dto.trackingLink }),
+      ...(dto.dispatchDate !== undefined && {
+        dispatchDate: dto.dispatchDate,
+      }),
+      ...(dto.trackingLink !== undefined && {
+        trackingLink: dto.trackingLink,
+      }),
       ...(dto.deliveryMethod !== undefined && {
         deliveryMethod: dto.deliveryMethod,
       }),
@@ -663,7 +815,9 @@ export class DispatchesService {
       where: {
         issueId,
         fromPointId: nodeId,
-        status: { not: DispatchStatus.Cancelled },
+        status: {
+          not: DispatchStatus.Cancelled,
+        },
       },
     });
 
@@ -687,20 +841,26 @@ export class DispatchesService {
     targetAncestorId: number,
   ): Promise<boolean> {
     let currentId: number | null = childNodeId;
+
     while (currentId !== null) {
-      const parentRecord: { parentId: number | null } | null =
-        await this.prisma.hierarchyNode.findUnique({
-          where: { id: currentId },
-          select: { parentId: true },
-        });
+      const parentRecord: {
+        parentId: number | null;
+      } | null = await this.prisma.hierarchyNode.findUnique({
+        where: { id: currentId },
+        select: { parentId: true },
+      });
+
       if (!parentRecord || parentRecord.parentId === null) {
         return false;
       }
+
       if (parentRecord.parentId === targetAncestorId) {
         return true;
       }
+
       currentId = parentRecord.parentId;
     }
+
     return false;
   }
 
@@ -708,23 +868,39 @@ export class DispatchesService {
   async getMyDispatchContext(user: AuthenticatedUser) {
     if (user.type === UserType.Admin) {
       const rootNodes = await this.prisma.hierarchyNode.findMany({
-        where: { level: HierarchyLevel.Prant, status: HierarchyStatus.Active },
-        select: { id: true, name: true, level: true },
-        orderBy: { name: 'asc' },
+        where: {
+          level: HierarchyLevel.Prant,
+          status: HierarchyStatus.Active,
+        },
+        select: {
+          id: true,
+          name: true,
+          level: true,
+        },
+        orderBy: {
+          name: 'asc',
+        },
       });
 
       return {
         isSuperAdmin: true,
         hasActiveAssignment: true,
-        sourcePoint: null, // Central publisher
-        designation: { id: 0, name: 'Super Administrator', level: 'Central' },
+        sourcePoint: null,
+        designation: {
+          id: 0,
+          name: 'Super Administrator',
+          level: 'Central',
+        },
         allowedDestinations: rootNodes,
       };
     }
 
     const activeAssignment =
       await this.prisma.userHierarchyDesignation.findFirst({
-        where: { userId: user.id, isActive: true },
+        where: {
+          userId: user.id,
+          isActive: true,
+        },
         include: {
           node: {
             select: {
@@ -736,10 +912,16 @@ export class DispatchesService {
             },
           },
           designation: {
-            select: { id: true, name: true, level: true },
+            select: {
+              id: true,
+              name: true,
+              level: true,
+            },
           },
         },
-        orderBy: { assignedAt: 'desc' },
+        orderBy: {
+          assignedAt: 'desc',
+        },
       });
 
     if (!activeAssignment) {
@@ -770,9 +952,23 @@ export class DispatchesService {
     }
 
     const allNodes = await this.prisma.hierarchyNode.findMany({
-      where: { status: HierarchyStatus.Active },
-      select: { id: true, name: true, level: true, parentId: true },
-      orderBy: [{ level: 'asc' }, { name: 'asc' }],
+      where: {
+        status: HierarchyStatus.Active,
+      },
+      select: {
+        id: true,
+        name: true,
+        level: true,
+        parentId: true,
+      },
+      orderBy: [
+        {
+          level: 'asc',
+        },
+        {
+          name: 'asc',
+        },
+      ],
     });
 
     const allowedDestinations = this.collectDescendants(
@@ -801,8 +997,13 @@ export class DispatchesService {
       level: HierarchyLevel;
       parentId: number | null;
     }>,
-  ): Array<{ id: number; name: string; level: HierarchyLevel }> {
+  ): Array<{
+    id: number;
+    name: string;
+    level: HierarchyLevel;
+  }> {
     const directChildren = allNodes.filter((n) => n.parentId === parentId);
+
     let descendants: Array<{
       id: number;
       name: string;
@@ -814,11 +1015,13 @@ export class DispatchesService {
         level: n.level,
       })),
     ];
+
     for (const child of directChildren) {
       descendants = descendants.concat(
         this.collectDescendants(child.id, allNodes),
       );
     }
+
     return descendants;
   }
 }

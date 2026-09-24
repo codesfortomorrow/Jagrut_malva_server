@@ -54,14 +54,18 @@ export class DispatchesController extends BaseController {
     return this.dispatchesService.create(dto, ctx.user?.id);
   }
 
-  @RequirePrivilege('dispatches.view')
+  @RequirePrivilege('dispatch.view', 'dispatches.view')
   @Get()
   @ApiOperation({ summary: 'List dispatches with pagination and filters' })
-  findAll(@Query() query: GetDispatchesRequestDto) {
-    return this.dispatchesService.findAll(query);
+  findAll(
+    @Query() query: GetDispatchesRequestDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const ctx = this.getContext(req);
+    return this.dispatchesService.findAll(query, ctx.user);
   }
 
-  @RequirePrivilege('dispatches.view')
+  @RequirePrivilege('dispatch.view', 'dispatches.view')
   @Get('my-context')
   @ApiOperation({
     summary: 'Get dispatch context and allowed destination points',
@@ -72,7 +76,7 @@ export class DispatchesController extends BaseController {
   }
 
   // NOTE: Must be defined before ':id' route to avoid route collision
-  @RequirePrivilege('dispatches.view')
+  @RequirePrivilege('dispatch.view', 'dispatches.view')
   @Get('issue/:issueId/chain')
   @ApiOperation({ summary: 'Get chain of custody for a published issue' })
   @ApiParam({ name: 'issueId', description: 'PublishIssue ID' })
@@ -80,7 +84,7 @@ export class DispatchesController extends BaseController {
     return this.dispatchesService.getChainOfCustody(issueId);
   }
 
-  @RequirePrivilege('dispatches.view')
+  @RequirePrivilege('dispatch.view', 'dispatches.view')
   @Get(':id')
   @ApiOperation({ summary: 'Get dispatch details by ID' })
   @ApiParam({ name: 'id', description: 'Dispatch ID' })
@@ -99,7 +103,7 @@ export class DispatchesController extends BaseController {
     return this.dispatchesService.update(id, dto);
   }
 
-  @RequirePrivilege('dispatches.edit')
+  @RequirePrivilege('dispatches.in_transit', 'dispatches.edit')
   @Patch(':id/in-transit')
   @ApiOperation({ summary: 'Transition dispatch from Dispatched to InTransit' })
   @ApiParam({ name: 'id', description: 'Dispatch ID' })
@@ -125,7 +129,11 @@ export class DispatchesController extends BaseController {
     return this.dispatchesService.receive(id, dto, ctx.user.id);
   }
 
-  @RequirePrivilege('dispatches.forward')
+  @RequirePrivilege(
+    'dispatches.forward',
+    'dispatches.create',
+    'dispatches.edit',
+  )
   @Post(':id/forward')
   @ApiOperation({ summary: 'Forward received consignment to downstream point' })
   @ApiParam({ name: 'id', description: 'Dispatch ID' })
@@ -138,7 +146,7 @@ export class DispatchesController extends BaseController {
     return this.dispatchesService.forward(id, dto, ctx.user?.id);
   }
 
-  @RequirePrivilege('dispatches.cancel')
+  @RequirePrivilege('dispatches.cancel', 'dispatches.delete', 'dispatches.edit')
   @Patch(':id/cancel')
   @ApiOperation({ summary: 'Cancel an unreceived or in-transit dispatch' })
   @ApiParam({ name: 'id', description: 'Dispatch ID' })
