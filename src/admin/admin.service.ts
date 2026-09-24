@@ -30,7 +30,7 @@ import {
   GetAdminUsersRequestDto,
   UpdateAdminUserRequestDto,
 } from './dto';
-import { ADMIN_ROLE_NAME } from '../roles/privilege-catalog.constant';
+import { ADMIN_ROLE_NAME } from 'src/roles/privilege-catalog.constant';
 
 const ADMIN_USER_INCLUDE: Prisma.AdminInclude = {
   role: true,
@@ -285,12 +285,17 @@ export class AdminService {
     return false;
   }
 
-  async getProfile(adminId: number): Promise<Admin> {
-    const admin = await this.getById(adminId);
-    if (admin.profileImage) {
-      admin.profileImage = this.getProfileImageUrl(admin.profileImage);
+  async getProfile(adminId: number) {
+    const admin = await this.prisma.admin.findUnique({
+      where: { id: adminId },
+      include: ADMIN_USER_INCLUDE,
+    });
+
+    if (!admin) {
+      throw new NotFoundException(`User with ID ${adminId} not found`);
     }
-    return admin;
+
+    return this.formatAdminUser(admin);
   }
 
   async updateProfileDetails(

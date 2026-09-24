@@ -36,7 +36,7 @@ import {
   RequirePrivilege,
 } from '@Common';
 import { HierarchyStatus } from '../generated/prisma/client';
-import { HierarchyService } from './hierarchy.service';
+import { HierarchyService, HierarchyImportResult } from './hierarchy.service';
 import {
   CreateHierarchyNodeDto,
   GetHierarchyNodesDto,
@@ -160,7 +160,9 @@ export class HierarchyController extends BaseController {
       },
     }),
   )
-  async importCsv(@UploadedFile() file: Express.Multer.File) {
+  async importCsv(
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<HierarchyImportResult> {
     if (!file || !file.buffer) {
       throw new BadRequestException('CSV file is required.');
     }

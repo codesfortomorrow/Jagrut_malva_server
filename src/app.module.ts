@@ -18,7 +18,8 @@ import { HierarchyModule } from './hierarchy';
 import { PublishIssuesModule } from './publish-issues';
 import { DispatchesModule } from './dispatches';
 import { DesignationsModule } from './designations';
-import { ConsumersModule } from './consumers';
+import { UsersModule } from './users';
+import { SubscriptionModule } from './subscription/subscription.module';
 
 @Module({
   imports: [
@@ -47,7 +48,8 @@ import { ConsumersModule } from './consumers';
     PublishIssuesModule,
     DispatchesModule,
     DesignationsModule,
-    ConsumersModule,
+    UsersModule,
+    SubscriptionModule,
   ],
   controllers: [AppController],
   providers: [

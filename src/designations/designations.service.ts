@@ -204,7 +204,7 @@ export class DesignationsService {
 
   async assignUser(dto: AssignUserDesignationDto) {
     // 1. Verify User exists and is active
-    const user = await this.prisma.user.findUnique({
+    const user = await this.prisma.admin.findUnique({
       where: { id: dto.userId },
     });
     if (!user) {
@@ -422,7 +422,7 @@ export class DesignationsService {
 
   async reassign(dto: ReassignUserDesignationDto) {
     // 1. Pre-validate that new user exists and is active
-    const newUser = await this.prisma.user.findUnique({
+    const newUser = await this.prisma.admin.findUnique({
       where: { id: dto.newUserId },
     });
     if (!newUser) {

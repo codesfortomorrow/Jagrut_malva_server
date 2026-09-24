@@ -52,6 +52,7 @@ model Admin {
   designationAssignments UserHierarchyDesignation[] @relation("UserAssignments")
   subordinateAssignments UserHierarchyDesignation[] @relation("ReportingManager")
   publishedIssues        PublishIssue[]             @relation("PublishedIssues")
+  registeredUsers        User[]                     @relation("RegisteredUsers")
 
   @@map("admin")
 }
@@ -65,6 +66,8 @@ model AdminMeta {
   @@map("admin_meta")
 }
 
+// ─── User (app user / account) ────────────────────────────────────────────────
+
 enum UserStatus {
   Active  @map("active")
   Blocked @map("blocked")
@@ -73,35 +76,57 @@ enum UserStatus {
 }
 
 model User {
-  id                  Int           @id @default(autoincrement())
-  firstname           String
-  lastname            String
-  username            String?       @unique
-  email               String        @unique
-  dialCode            String?       @map("dial_code")
-  mobile              String?       @unique
-  profileImage        String?       @map("profile_image")
-  isVerified          Boolean       @default(false) @map("is_verified")
-  country             String?
-  status              UserStatus    @default(Active)
-  createdAt           DateTime      @default(now()) @map("created_at")
-  updatedAt           DateTime      @updatedAt @map("updated_at")
-  meta                UserMeta?
-  settings            UserSetting[]
-  registeredConsumers Consumer[]    @relation("RegisteredConsumers")
+  id               Int           @id @default(autoincrement())
+  fullName         String        @map("full_name")
+  fatherName       String        @map("father_name")
+  whatsappMobile   String        @unique @map("whatsapp_mobile")
+  additionalMobile String?       @map("additional_mobile")
+  fullAddress      String        @map("full_address")
+  postalGram       String?       @map("postal_gram")
+  post             String?       @map("post")
+  tehsil           String?       @map("tehsil")
+  pincode          String?       @map("pincode")
+  vibhag           HierarchyNode @relation("UserVibhag", fields: [vibhagId], references: [id], onDelete: Restrict)
+  vibhagId         Int           @map("vibhag_id")
+  jila             HierarchyNode @relation("UserJila", fields: [jilaId], references: [id], onDelete: Restrict)
+  jilaId           Int           @map("jila_id")
+  khand            HierarchyNode @relation("UserKhand", fields: [khandId], references: [id], onDelete: Restrict)
+  khandId          Int           @map("khand_id")
+  mandal           HierarchyNode @relation("UserMandal", fields: [mandalId], references: [id], onDelete: Restrict)
+  mandalId         Int           @map("mandal_id")
+  gram             HierarchyNode @relation("UserGram", fields: [gramId], references: [id], onDelete: Restrict)
+  gramId           Int           @map("gram_id")
+  registrarName    String        @map("registrar_name")
+  registrarMobile  String        @map("registrar_mobile")
+  registeredBy     Admin?        @relation("RegisteredUsers", fields: [registeredById], references: [id], onDelete: SetNull)
+  registeredById   Int?          @map("registered_by_id")
+  status           UserStatus    @default(Active)
 
+  subscriptions Subscription[]
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  settings      UserSetting[]
+
+  @@index([whatsappMobile])
+  @@index([vibhagId])
+  @@index([jilaId])
+  @@index([khandId])
+  @@index([mandalId])
+  @@index([gramId])
+  @@index([registeredById])
+  @@index([status])
   @@map("user")
 }
 
-model UserMeta {
-  googleId     String? @unique @map("google_id")
-  passwordSalt String? @map("password_salt")
-  passwordHash String? @map("password_hash")
-  user         User    @relation(fields: [userId], references: [id])
-  userId       Int     @unique() @map("user_id")
-
-  @@map("user_meta")
-}
+// model UserMeta {
+//   googleId     String? @unique @map("google_id")
+//   passwordSalt String? @map("password_salt")
+//   passwordHash String? @map("password_hash")
+//   user         User    @relation(fields: [userId], references: [id])
+//   userId       Int     @unique() @map("user_id")
+//
+//   @@map("user_meta")
+// }
 
 enum OtpTransport {
   Email  @map("email")
@@ -275,10 +300,11 @@ model HierarchyNode {
   dispatchesFrom         DispatchEntry[]            @relation("DispatchesFrom")
   dispatchesTo           DispatchEntry[]            @relation("DispatchesTo")
   designationAssignments UserHierarchyDesignation[]
-  consumersJila          Consumer[]                 @relation("ConsumerJila")
-  consumersKhand         Consumer[]                 @relation("ConsumerKhand")
-  consumersMandal        Consumer[]                 @relation("ConsumerMandal")
-  consumersGram          Consumer[]                 @relation("ConsumerGram")
+  usersVibhag            User[]                     @relation("UserVibhag")
+  usersJila              User[]                     @relation("UserJila")
+  usersKhand             User[]                     @relation("UserKhand")
+  usersMandal            User[]                     @relation("UserMandal")
+  usersGram              User[]                     @relation("UserGram")
   createdAt              DateTime                   @default(now()) @map("created_at")
   updatedAt              DateTime                   @updatedAt @map("updated_at")
 
@@ -400,48 +426,44 @@ model DispatchEntry {
   @@map("dispatch_entry")
 }
 
-// ─── Jagrut Malwa: Consumer Module ───────────────────────────────────────────
+// ─── Jagrut Malwa: Subscription Module ────────────────────────────────────────
 
-enum ConsumerStatus {
-  Active   @map("active")
-  InActive @map("inactive")
+enum PaymentMode {
+  UPI          @map("upi")
+  Cash         @map("cash")
+  Cheque       @map("cheque")
+  BankTransfer @map("bank_transfer")
+  Card         @map("card")
 
-  @@map("consumer_status")
+  @@map("payment_mode")
 }
 
-model Consumer {
-  id               Int            @id @default(autoincrement())
-  fullName         String         @map("full_name")
-  fatherName       String         @map("father_name")
-  whatsappMobile   String         @unique @map("whatsapp_mobile")
-  additionalMobile String?        @map("additional_mobile")
-  fullAddress      String         @map("full_address")
-  postalGram       String?        @map("postal_gram")
-  post             String?        @map("post")
-  tehsil           String?        @map("tehsil")
-  pincode          String?        @map("pincode")
-  jila             HierarchyNode  @relation("ConsumerJila", fields: [jilaId], references: [id], onDelete: Restrict)
-  jilaId           Int            @map("jila_id")
-  khand            HierarchyNode  @relation("ConsumerKhand", fields: [khandId], references: [id], onDelete: Restrict)
-  khandId          Int            @map("khand_id")
-  mandal           HierarchyNode  @relation("ConsumerMandal", fields: [mandalId], references: [id], onDelete: Restrict)
-  mandalId         Int            @map("mandal_id")
-  gram             HierarchyNode  @relation("ConsumerGram", fields: [gramId], references: [id], onDelete: Restrict)
-  gramId           Int            @map("gram_id")
-  registrarName    String         @map("registrar_name")
-  registrarMobile  String         @map("registrar_mobile")
-  registeredBy     User?          @relation("RegisteredConsumers", fields: [registeredById], references: [id], onDelete: SetNull)
-  registeredById   Int?           @map("registered_by_id")
-  status           ConsumerStatus @default(Active)
-  createdAt        DateTime       @default(now()) @map("created_at")
-  updatedAt        DateTime       @updatedAt @map("updated_at")
+enum SubscriptionPlan {
+  Monthly @map("monthly")
+  Yearly  @map("yearly")
 
-  @@index([whatsappMobile])
-  @@index([jilaId])
-  @@index([khandId])
-  @@index([mandalId])
-  @@index([gramId])
-  @@index([registeredById])
-  @@index([status])
-  @@map("consumer")
+  @@map("subscription_plan")
+}
+
+model Subscription {
+  id          Int              @id @default(autoincrement())
+  plan        SubscriptionPlan
+  startDate   DateTime         @map("start_date")
+  endDate     DateTime         @map("end_date")
+  utrNumber   String?          @map("utr_number")
+  paymentMode PaymentMode      @map("payment_mode")
+  remarks     String           @default("")
+  externalId  Int? // third party mapping id
+  isActive    Boolean          @default(false) @map("is_active")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  user   User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  userId Int  @map("user_id")
+
+  @@index([userId])
+  @@index([isActive])
+  @@index([endDate])
+  @@index([userId, isActive])
+  @@map("subscription")
 }

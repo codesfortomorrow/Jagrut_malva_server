@@ -1,188 +1,47 @@
 import {
-  BadRequestException,
   Body,
   Controller,
-  Delete,
-  Get,
-  Param,
-  ParseEnumPipe,
-  ParseIntPipe,
-  Patch,
+  HttpCode,
+  HttpStatus,
   Post,
-  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiBody,
   ApiOperation,
-  ApiParam,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import {
-  AuthenticatedRequest,
-  BaseController,
-  JwtAuthGuard,
-  RolesGuard,
-  UserType,
-  Roles,
-  AccessGuard,
-  PrivilegeGuard,
-  RequirePrivilege,
-} from '@Common';
 import { UsersService } from './users.service';
-import {
-  AssignRoleRequestDto,
-  ChangePasswordRequestDto,
-  CreateUserRequestDto,
-  GetUsersRequestDto,
-  UpdateProfileDetailsRequestDto,
-  UpdateProfileImageRequestDto,
-  UpdateUserProfileRequestDto,
-} from './dto';
-import { UserStatus } from '../generated/prisma/client';
-
-@ApiTags('User')
+import { CreateUserRequestDto } from './dto';
+import { User } from '../generated/prisma/client';
+import { AuthenticatedRequest, BaseController, JwtAuthGuard } from '@Common';
+@UseGuards(JwtAuthGuard)
+@ApiTags('Users')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, AccessGuard)
 @Controller('users')
 export class UsersController extends BaseController {
   constructor(private readonly usersService: UsersService) {
     super();
   }
 
-  @RequirePrivilege('users.manage')
-  @UseGuards(PrivilegeGuard)
-  @Post()
+  @Post('register')
+  @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
-    summary:
-      'Create a new user with optional roles and organizational assignments in a single transaction',
+    summary: 'Register a new user against the organization hierarchy',
   })
+  @ApiBody({ type: CreateUserRequestDto })
   @ApiResponse({
     status: 201,
-    description: 'User created and onboarded successfully',
+    description: 'User registered successfully',
   })
-  @ApiResponse({
-    status: 400,
-    description: 'Validation failed or duplicate email/mobile',
-  })
-  // async createUser(@Body() dto: CreateUserRequestDto) {
-  //   return await this.usersService.createUser(dto);
-  // }
-  @Roles(UserType.Admin)
-  @UseGuards(RolesGuard)
-  @Get()
-  async getUsers(@Query() query: GetUsersRequestDto) {
-    return await this.usersService.getAll({
-      search: query.search,
-      skip: query.skip,
-      take: query.take,
-    });
-  }
-
-  @Get('me')
-  async getProfile(@Req() req: AuthenticatedRequest) {
-    const ctx = this.getContext(req);
-    return await this.usersService.getProfile(ctx.user.id);
-  }
-
-  @Patch('me')
-  async updateProfileDetails(
+  async register(
+    @Body() dto: CreateUserRequestDto,
     @Req() req: AuthenticatedRequest,
-    @Body() data: UpdateProfileDetailsRequestDto,
-  ) {
-    if (data.mobile && (!data.dialCode || !data.country)) {
-      throw new BadRequestException();
-    }
+  ): Promise<User> {
     const ctx = this.getContext(req);
-    await this.usersService.updateProfileDetails({
-      userId: ctx.user.id,
-      username: data.username,
-      firstname: data.firstname,
-      lastname: data.lastname,
-      email: data.email,
-      dialCode: data.dialCode,
-      mobile: data.mobile,
-      country: data.country,
-    });
-    return { status: 'success' };
-  }
-
-  @Roles(UserType.Admin)
-  @UseGuards(RolesGuard)
-  @Get(':userId')
-  async getUserProfile(@Param('userId', ParseIntPipe) userId: number) {
-    return await this.usersService.getProfile(userId);
-  }
-
-  @Roles(UserType.Admin)
-  @UseGuards(RolesGuard)
-  @Patch(':userId')
-  async updateUserProfileDetails(
-    @Param('userId', ParseIntPipe) userId: number,
-    @Body() data: UpdateUserProfileRequestDto,
-  ) {
-    return await this.usersService.updateProfileDetailsByAdministrator({
-      userId,
-      username: data.username,
-      firstname: data.firstname,
-      lastname: data.lastname,
-      email: data.email,
-      dialCode: data.dialCode,
-      mobile: data.mobile,
-      country: data.country,
-      password: data.password,
-    });
-  }
-
-  @Post('me/profile-image')
-  updateProfileImage(
-    @Req() req: AuthenticatedRequest,
-    @Body() data: UpdateProfileImageRequestDto,
-  ) {
-    const ctx = this.getContext(req);
-    return this.usersService.updateProfileImage(ctx.user.id, data.profileImage);
-  }
-
-  @Post('me/change-password')
-  async changePassword(
-    @Req() req: AuthenticatedRequest,
-    @Body() data: ChangePasswordRequestDto,
-  ) {
-    const ctx = this.getContext(req);
-    await this.usersService.changePassword(
-      ctx.user.id,
-      data.oldPassword,
-      data.newPassword,
-    );
-    return { status: 'success' };
-  }
-
-  // GET ROLES ASSIGNED TO A USER
-  // @RequirePrivilege('roles.view')
-  // @UseGuards(PrivilegeGuard)
-  // @Get(':userId/roles')
-  // @ApiOperation({ summary: 'Get all roles assigned to a user' })
-  // @ApiParam({ name: 'userId', type: Number, description: 'User ID' })
-  // @ApiResponse({
-  //   status: 200,
-  //   description: 'List of roles assigned to the user',
-  // })
-  // @ApiResponse({ status: 404, description: 'User not found' })
-  // getUserRoles(@Param('userId', ParseIntPipe) userId: number) {
-  //   return this.usersService.getUserRoles(userId);
-  // }
-
-  @ApiParam({ name: 'status', enum: UserStatus })
-  @Roles(UserType.Admin)
-  @UseGuards(RolesGuard)
-  @Post(':userId/:status')
-  async setUserStatus(
-    @Param('userId', ParseIntPipe) userId: number,
-    @Param('status', new ParseEnumPipe(UserStatus)) status: UserStatus,
-  ) {
-    await this.usersService.setStatus(userId, status);
-    return { status: 'success' };
+    return this.usersService.registerUser(dto, ctx.user.id);
   }
 }

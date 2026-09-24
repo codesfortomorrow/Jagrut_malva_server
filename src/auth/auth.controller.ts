@@ -6,9 +6,6 @@ import {
   UseGuards,
   HttpCode,
   Inject,
-  Body,
-  BadRequestException,
-  UnprocessableEntityException,
   Get,
   Redirect,
 } from '@nestjs/common';
@@ -29,21 +26,9 @@ import {
   ValidatedUser,
 } from '@Common';
 import { appConfigFactory, authConfigFactory } from '@Config';
-import {
-  AuthService,
-  InvalidVerifyCodeResponse,
-  ValidAuthResponse,
-} from './auth.service';
+import { AuthService } from './auth.service';
 import { GoogleOAuthGuard, LocalAuthGuard } from './guards';
-import {
-  ForgotPasswordRequestDto,
-  RegisterUserRequestDto,
-  ResetPasswordRequestDto,
-  SendCodeRequestDto,
-  LoginRequestDto,
-} from './dto';
-import { SendCodeResponse } from '../otp';
-import { OtpTransport } from '../generated/prisma/client';
+import { LoginRequestDto } from './dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -110,64 +95,6 @@ export class AuthController extends BaseController {
     });
   }
 
-  @Post('send-code')
-  async sendCode(@Body() data: SendCodeRequestDto) {
-    if (data.mobile && !data.country) {
-      throw new BadRequestException();
-    }
-
-    const response = {} as Record<'email' | 'mobile', SendCodeResponse>;
-    if (data.email) {
-      response.email = await this.authService.sendCode(
-        data.email,
-        OtpTransport.Email,
-        data.type,
-      );
-    }
-    if (data.mobile) {
-      response.mobile = await this.authService.sendCode(
-        data.mobile,
-        OtpTransport.Mobile,
-        data.type,
-      );
-    }
-
-    return response;
-  }
-
-  @Post('register')
-  async register(
-    @Res({ passthrough: true }) res: Response,
-    @Body() data: RegisterUserRequestDto,
-  ) {
-    const response = await this.authService.registerUser({
-      firstname: data.firstname,
-      lastname: data.lastname,
-      email: data.email,
-      password: data.password,
-      dialCode: data.dialCode,
-      mobile: data.mobile,
-      country: data.country,
-      emailVerificationCode: data.emailVerificationCode,
-      mobileVerificationCode: data.mobileVerificationCode,
-    });
-
-    if (
-      (response as InvalidVerifyCodeResponse).email ||
-      (response as InvalidVerifyCodeResponse).mobile
-    ) {
-      throw new UnprocessableEntityException({
-        statusCode: 422,
-        message: 'Invalid verification code',
-        meta: response as InvalidVerifyCodeResponse,
-      });
-    }
-
-    const { accessToken, expiresIn, type } = response as ValidAuthResponse;
-    this.setAuthCookie(res, accessToken, type, expiresIn);
-    return { accessToken, expiresIn, type };
-  }
-
   @ApiBody({ type: () => LoginRequestDto })
   @UseGuards(LocalAuthGuard)
   @HttpCode(200)
@@ -220,26 +147,6 @@ export class AuthController extends BaseController {
   ) {
     const ctx = this.getContext(req);
     this.removeCookie(res, this.getAuthCookie(ctx.user.type));
-    return { status: 'success' };
-  }
-
-  @Post('forgot-password')
-  @HttpCode(200)
-  async forgotPassword(@Body() data: ForgotPasswordRequestDto) {
-    if (!data.email && !data.mobile) throw BadRequestException;
-    return await this.authService.forgotPassword(data.email, data.mobile);
-  }
-
-  @Post('reset-password')
-  @HttpCode(200)
-  async resetPassword(@Body() data: ResetPasswordRequestDto) {
-    if (!data.email && !data.mobile) throw new BadRequestException();
-    await this.authService.resetPassword(
-      data.code,
-      data.newPassword,
-      data.mobile,
-      data.email,
-    );
     return { status: 'success' };
   }
 }

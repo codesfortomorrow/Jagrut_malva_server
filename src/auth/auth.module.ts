@@ -6,14 +6,10 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { GoogleStrategy, LocalStrategy } from './strategies';
 import { AdminModule } from '../admin';
-import { UsersModule } from '../users';
-import { OtpModule } from '../otp';
 
 @Module({
   imports: [
     AdminModule,
-    UsersModule,
-    OtpModule,
     JwtModule.registerAsync({
       useFactory: (config: ConfigType<typeof jwtConfigFactory>) => ({
         secret: config.secret,

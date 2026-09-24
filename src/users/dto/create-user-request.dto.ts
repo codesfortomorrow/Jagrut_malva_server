@@ -1,131 +1,104 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
 import {
-  IsArray,
-  IsEmail,
   IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
-  Min,
-  MinLength,
-  ValidateNested,
+  Matches,
 } from 'class-validator';
-
-export class CreateUserAssignmentDto {
-  @ApiProperty({
-    example: 5,
-    description: 'Hierarchy Node ID (Point) where user is assigned',
-  })
-  @IsNotEmpty({ message: 'pointId is required' })
-  @IsInt({ message: 'pointId must be an integer' })
-  @Min(1, { message: 'pointId must be a positive integer' })
-  @Type(() => Number)
-  pointId: number;
-
-  @ApiProperty({
-    example: 1,
-    description: 'Designation ID to hold at the selected point',
-  })
-  @IsNotEmpty({ message: 'designationId is required' })
-  @IsInt({ message: 'designationId must be an integer' })
-  @Min(1, { message: 'designationId must be a positive integer' })
-  @Type(() => Number)
-  designationId: number;
-
-  @ApiPropertyOptional({
-    example: 10,
-    description:
-      'User ID of the Reporting Authority manager (optional / nullable)',
-    nullable: true,
-  })
-  @IsOptional()
-  @IsInt({ message: 'reportingId must be an integer' })
-  @Min(1, { message: 'reportingId must be a positive integer' })
-  @Type(() => Number)
-  reportingId?: number | null;
-}
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateUserRequestDto {
-  @ApiProperty({
-    example: 'Rajendra',
-    description: 'First name of the user',
-  })
-  @IsNotEmpty({ message: 'firstname is required' })
+  @ApiProperty({ example: 'Ramesh Kumar' })
   @IsString()
-  firstname: string;
+  @IsNotEmpty()
+  fullName: string;
 
-  @ApiPropertyOptional({
-    example: 'Sharma',
-    description: 'Last name of the user',
-  })
-  @IsOptional()
+  @ApiProperty({ example: 'Suresh Kumar' })
   @IsString()
-  lastname?: string;
+  @IsNotEmpty()
+  fatherName: string;
 
   @ApiProperty({
-    example: 'manager@example.com',
-    description: 'Unique email address',
-  })
-  @IsNotEmpty({ message: 'email is required' })
-  @IsEmail({}, { message: 'email must be a valid email address' })
-  email: string;
-
-  @ApiPropertyOptional({
     example: '9876543210',
-    description: 'Mobile phone number',
+    description: '10-digit mobile number used for WhatsApp contact/OTP',
   })
-  @IsOptional()
   @IsString()
-  mobile?: string;
+  @Matches(/^[6-9]\d{9}$/, {
+    message: 'whatsappMobile must be a valid 10-digit mobile number',
+  })
+  whatsappMobile: string;
 
   @ApiPropertyOptional({
-    example: '+91',
-    description: 'Dial code',
-    default: '+91',
+    example: '9123456780',
+    description: 'Alternate 10-digit mobile number',
   })
   @IsOptional()
   @IsString()
-  dialCode?: string;
+  @Matches(/^[6-9]\d{9}$/, {
+    message: 'additionalMobile must be a valid 10-digit mobile number',
+  })
+  additionalMobile?: string;
 
-  @ApiPropertyOptional({
-    example: 'IN',
-    description: 'Country code',
-    default: 'IN',
-  })
+  @ApiProperty({ example: 'House No. 12, Near Shiv Mandir' })
+  @IsString()
+  @IsNotEmpty()
+  fullAddress: string;
+
+  @ApiPropertyOptional({ example: 'Rampura' })
   @IsOptional()
   @IsString()
-  country?: string;
+  postalGram?: string;
+
+  @ApiPropertyOptional({ example: 'Rampura Post' })
+  @IsOptional()
+  @IsString()
+  post?: string;
+
+  @ApiPropertyOptional({ example: 'Indore' })
+  @IsOptional()
+  @IsString()
+  tehsil?: string;
+
+  @ApiPropertyOptional({ example: '452001' })
+  @IsOptional()
+  @IsString()
+  pincode?: string;
+
+  @ApiProperty({ example: 1, description: 'HierarchyNode id at Vibhag level' })
+  @IsInt()
+  vibhagId: number;
+
+  @ApiProperty({ example: 1, description: 'HierarchyNode id at Jila level' })
+  @IsInt()
+  jilaId: number;
+
+  @ApiProperty({ example: 2, description: 'HierarchyNode id at Khand level' })
+  @IsInt()
+  khandId: number;
+
+  @ApiProperty({ example: 3, description: 'HierarchyNode id at Mandal level' })
+  @IsInt()
+  mandalId: number;
+
+  @ApiProperty({ example: 4, description: 'HierarchyNode id at Gram level' })
+  @IsInt()
+  gramId: number;
 
   @ApiProperty({
-    example: 'SecurePassword@123',
-    description: 'Account password (minimum 6 characters)',
+    example: 'Mohan Sharma',
+    description: 'Name of the person who registered this user offline',
   })
-  @IsNotEmpty({ message: 'password is required' })
-  @MinLength(6, { message: 'password must be at least 6 characters long' })
   @IsString()
-  password: string;
+  @IsNotEmpty()
+  registrarName: string;
 
-  @ApiPropertyOptional({
-    example: [3],
-    description:
-      'Array of Role IDs to assign (e.g. 2 for ORGANIZATION_MEMBER, 3 for MANAGER)',
-    type: [Number],
+  @ApiProperty({
+    example: '9988776655',
+    description: '10-digit mobile number of the registrar',
   })
-  @IsOptional()
-  @IsArray()
-  @IsInt({ each: true, message: 'each roleId must be an integer' })
-  @Type(() => Number)
-  roleIds?: number[];
-
-  @ApiPropertyOptional({
-    description:
-      'Array of explicit organizational assignments, each binding a point, designation, and reporting authority',
-    type: [CreateUserAssignmentDto],
+  @IsString()
+  @Matches(/^[6-9]\d{9}$/, {
+    message: 'registrarMobile must be a valid 10-digit mobile number',
   })
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => CreateUserAssignmentDto)
-  assignments?: CreateUserAssignmentDto[];
+  registrarMobile: string;
 }

@@ -1,5 +1,8 @@
+-- CreateSchema
+CREATE SCHEMA IF NOT EXISTS "public";
+
 -- CreateEnum
-CREATE TYPE "admin_status" AS ENUM ('active');
+CREATE TYPE "admin_status" AS ENUM ('active', 'blocked');
 
 -- CreateEnum
 CREATE TYPE "user_status" AS ENUM ('active', 'blocked');
@@ -20,7 +23,7 @@ CREATE TYPE "role_type" AS ENUM ('system', 'custom');
 CREATE TYPE "role_status" AS ENUM ('active', 'inactive');
 
 -- CreateEnum
-CREATE TYPE "hierarchy_level" AS ENUM ('prant', 'jila', 'khand_nagar', 'mandal_basti', 'gram_mohalla');
+CREATE TYPE "hierarchy_level" AS ENUM ('prant', 'vibhag', 'jila', 'khand_nagar', 'mandal_basti', 'gram_mohalla');
 
 -- CreateEnum
 CREATE TYPE "hierarchy_status" AS ENUM ('active', 'inactive');
@@ -32,7 +35,13 @@ CREATE TYPE "publish_issue_status" AS ENUM ('draft', 'published', 'archived');
 CREATE TYPE "dispatch_status" AS ENUM ('draft', 'dispatched', 'in_transit', 'received', 'discrepancy', 'forwarded', 'completed', 'cancelled');
 
 -- CreateEnum
-CREATE TYPE "consumer_status" AS ENUM ('active', 'inactive');
+CREATE TYPE "delivery_method" AS ENUM ('courier', 'manual');
+
+-- CreateEnum
+CREATE TYPE "payment_mode" AS ENUM ('upi', 'cash', 'cheque', 'bank_transfer', 'card');
+
+-- CreateEnum
+CREATE TYPE "subscription_plan" AS ENUM ('monthly', 'yearly');
 
 -- CreateTable
 CREATE TABLE "hierarchy_designation" (
@@ -53,10 +62,12 @@ CREATE TABLE "admin" (
     "firstname" TEXT NOT NULL,
     "lastname" TEXT NOT NULL,
     "email" TEXT NOT NULL,
+    "mobile" TEXT,
     "profile_image" TEXT,
     "status" "admin_status" NOT NULL DEFAULT 'active',
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
+    "role_id" INTEGER NOT NULL,
 
     CONSTRAINT "admin_pkey" PRIMARY KEY ("id")
 );
@@ -71,28 +82,28 @@ CREATE TABLE "admin_meta" (
 -- CreateTable
 CREATE TABLE "user" (
     "id" SERIAL NOT NULL,
-    "firstname" TEXT NOT NULL,
-    "lastname" TEXT NOT NULL,
-    "username" TEXT,
-    "email" TEXT NOT NULL,
-    "dial_code" TEXT,
-    "mobile" TEXT,
-    "profile_image" TEXT,
-    "is_verified" BOOLEAN NOT NULL DEFAULT false,
-    "country" TEXT,
+    "full_name" TEXT NOT NULL,
+    "father_name" TEXT NOT NULL,
+    "whatsapp_mobile" TEXT NOT NULL,
+    "additional_mobile" TEXT,
+    "full_address" TEXT NOT NULL,
+    "postal_gram" TEXT,
+    "post" TEXT,
+    "tehsil" TEXT,
+    "pincode" TEXT,
+    "vibhag_id" INTEGER NOT NULL,
+    "jila_id" INTEGER NOT NULL,
+    "khand_id" INTEGER NOT NULL,
+    "mandal_id" INTEGER NOT NULL,
+    "gram_id" INTEGER NOT NULL,
+    "registrar_name" TEXT NOT NULL,
+    "registrar_mobile" TEXT NOT NULL,
+    "registered_by_id" INTEGER,
     "status" "user_status" NOT NULL DEFAULT 'active',
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "user_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "user_meta" (
-    "google_id" TEXT,
-    "password_salt" TEXT,
-    "password_hash" TEXT,
-    "user_id" INTEGER NOT NULL
 );
 
 -- CreateTable
@@ -184,15 +195,6 @@ CREATE TABLE "role_privilege" (
 );
 
 -- CreateTable
-CREATE TABLE "user_role" (
-    "user_id" INTEGER NOT NULL,
-    "role_id" INTEGER NOT NULL,
-    "assigned_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "user_role_pkey" PRIMARY KEY ("user_id","role_id")
-);
-
--- CreateTable
 CREATE TABLE "hierarchy_node" (
     "id" SERIAL NOT NULL,
     "name" TEXT NOT NULL,
@@ -248,6 +250,7 @@ CREATE TABLE "dispatch_entry" (
     "dispatch_date" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "tracking_link" TEXT,
     "status" "dispatch_status" NOT NULL DEFAULT 'dispatched',
+    "delivery_method" "delivery_method" NOT NULL DEFAULT 'manual',
     "received_quantity" INTEGER,
     "received_at" TIMESTAMP(3),
     "received_by_id" INTEGER,
@@ -259,29 +262,21 @@ CREATE TABLE "dispatch_entry" (
 );
 
 -- CreateTable
-CREATE TABLE "consumer" (
+CREATE TABLE "subscription" (
     "id" SERIAL NOT NULL,
-    "full_name" TEXT NOT NULL,
-    "father_name" TEXT NOT NULL,
-    "whatsapp_mobile" TEXT NOT NULL,
-    "additional_mobile" TEXT,
-    "full_address" TEXT NOT NULL,
-    "postal_gram" TEXT,
-    "post" TEXT,
-    "tehsil" TEXT,
-    "pincode" TEXT,
-    "jila_id" INTEGER NOT NULL,
-    "khand_id" INTEGER NOT NULL,
-    "mandal_id" INTEGER NOT NULL,
-    "gram_id" INTEGER NOT NULL,
-    "registrar_name" TEXT NOT NULL,
-    "registrar_mobile" TEXT NOT NULL,
-    "registered_by_id" INTEGER,
-    "status" "consumer_status" NOT NULL DEFAULT 'active',
+    "plan" "subscription_plan" NOT NULL,
+    "start_date" TIMESTAMP(3) NOT NULL,
+    "end_date" TIMESTAMP(3) NOT NULL,
+    "utr_number" TEXT,
+    "payment_mode" "payment_mode" NOT NULL,
+    "remarks" TEXT NOT NULL DEFAULT '',
+    "externalId" INTEGER,
+    "is_active" BOOLEAN NOT NULL DEFAULT false,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
+    "user_id" INTEGER NOT NULL,
 
-    CONSTRAINT "consumer_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "subscription_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -297,22 +292,37 @@ CREATE UNIQUE INDEX "hierarchy_designation_level_name_key" ON "hierarchy_designa
 CREATE UNIQUE INDEX "admin_email_key" ON "admin"("email");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "admin_mobile_key" ON "admin"("mobile");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "admin_meta_admin_id_key" ON "admin_meta"("admin_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "user_username_key" ON "user"("username");
+CREATE UNIQUE INDEX "user_whatsapp_mobile_key" ON "user"("whatsapp_mobile");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "user_email_key" ON "user"("email");
+CREATE INDEX "user_whatsapp_mobile_idx" ON "user"("whatsapp_mobile");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "user_mobile_key" ON "user"("mobile");
+CREATE INDEX "user_vibhag_id_idx" ON "user"("vibhag_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "user_meta_google_id_key" ON "user_meta"("google_id");
+CREATE INDEX "user_jila_id_idx" ON "user"("jila_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "user_meta_user_id_key" ON "user_meta"("user_id");
+CREATE INDEX "user_khand_id_idx" ON "user"("khand_id");
+
+-- CreateIndex
+CREATE INDEX "user_mandal_id_idx" ON "user"("mandal_id");
+
+-- CreateIndex
+CREATE INDEX "user_gram_id_idx" ON "user"("gram_id");
+
+-- CreateIndex
+CREATE INDEX "user_registered_by_id_idx" ON "user"("registered_by_id");
+
+-- CreateIndex
+CREATE INDEX "user_status_idx" ON "user"("status");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "otp_transport_target_key" ON "otp"("transport", "target");
@@ -381,6 +391,9 @@ CREATE INDEX "dispatch_entry_to_point_id_idx" ON "dispatch_entry"("to_point_id")
 CREATE INDEX "dispatch_entry_status_idx" ON "dispatch_entry"("status");
 
 -- CreateIndex
+CREATE INDEX "dispatch_entry_delivery_method_idx" ON "dispatch_entry"("delivery_method");
+
+-- CreateIndex
 CREATE INDEX "dispatch_entry_dispatch_date_idx" ON "dispatch_entry"("dispatch_date");
 
 -- CreateIndex
@@ -390,34 +403,40 @@ CREATE INDEX "dispatch_entry_received_by_id_idx" ON "dispatch_entry"("received_b
 CREATE INDEX "dispatch_entry_dispatched_by_id_idx" ON "dispatch_entry"("dispatched_by_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "consumer_whatsapp_mobile_key" ON "consumer"("whatsapp_mobile");
+CREATE INDEX "subscription_user_id_idx" ON "subscription"("user_id");
 
 -- CreateIndex
-CREATE INDEX "consumer_whatsapp_mobile_idx" ON "consumer"("whatsapp_mobile");
+CREATE INDEX "subscription_is_active_idx" ON "subscription"("is_active");
 
 -- CreateIndex
-CREATE INDEX "consumer_jila_id_idx" ON "consumer"("jila_id");
+CREATE INDEX "subscription_end_date_idx" ON "subscription"("end_date");
 
 -- CreateIndex
-CREATE INDEX "consumer_khand_id_idx" ON "consumer"("khand_id");
+CREATE INDEX "subscription_user_id_is_active_idx" ON "subscription"("user_id", "is_active");
 
--- CreateIndex
-CREATE INDEX "consumer_mandal_id_idx" ON "consumer"("mandal_id");
-
--- CreateIndex
-CREATE INDEX "consumer_gram_id_idx" ON "consumer"("gram_id");
-
--- CreateIndex
-CREATE INDEX "consumer_registered_by_id_idx" ON "consumer"("registered_by_id");
-
--- CreateIndex
-CREATE INDEX "consumer_status_idx" ON "consumer"("status");
+-- AddForeignKey
+ALTER TABLE "admin" ADD CONSTRAINT "admin_role_id_fkey" FOREIGN KEY ("role_id") REFERENCES "role"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "admin_meta" ADD CONSTRAINT "admin_meta_admin_id_fkey" FOREIGN KEY ("admin_id") REFERENCES "admin"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "user_meta" ADD CONSTRAINT "user_meta_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "user" ADD CONSTRAINT "user_vibhag_id_fkey" FOREIGN KEY ("vibhag_id") REFERENCES "hierarchy_node"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "user" ADD CONSTRAINT "user_jila_id_fkey" FOREIGN KEY ("jila_id") REFERENCES "hierarchy_node"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "user" ADD CONSTRAINT "user_khand_id_fkey" FOREIGN KEY ("khand_id") REFERENCES "hierarchy_node"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "user" ADD CONSTRAINT "user_mandal_id_fkey" FOREIGN KEY ("mandal_id") REFERENCES "hierarchy_node"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "user" ADD CONSTRAINT "user_gram_id_fkey" FOREIGN KEY ("gram_id") REFERENCES "hierarchy_node"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "user" ADD CONSTRAINT "user_registered_by_id_fkey" FOREIGN KEY ("registered_by_id") REFERENCES "admin"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "setting" ADD CONSTRAINT "setting_parent_id_fkey" FOREIGN KEY ("parent_id") REFERENCES "setting"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -439,12 +458,6 @@ ALTER TABLE "role_privilege" ADD CONSTRAINT "role_privilege_role_id_fkey" FOREIG
 
 -- AddForeignKey
 ALTER TABLE "role_privilege" ADD CONSTRAINT "role_privilege_privilege_id_fkey" FOREIGN KEY ("privilege_id") REFERENCES "privilege"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "user_role" ADD CONSTRAINT "user_role_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "admin"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "user_role" ADD CONSTRAINT "user_role_role_id_fkey" FOREIGN KEY ("role_id") REFERENCES "role"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "hierarchy_node" ADD CONSTRAINT "hierarchy_node_parent_id_fkey" FOREIGN KEY ("parent_id") REFERENCES "hierarchy_node"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -480,16 +493,5 @@ ALTER TABLE "dispatch_entry" ADD CONSTRAINT "dispatch_entry_received_by_id_fkey"
 ALTER TABLE "dispatch_entry" ADD CONSTRAINT "dispatch_entry_dispatched_by_id_fkey" FOREIGN KEY ("dispatched_by_id") REFERENCES "admin"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "consumer" ADD CONSTRAINT "consumer_jila_id_fkey" FOREIGN KEY ("jila_id") REFERENCES "hierarchy_node"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "subscription" ADD CONSTRAINT "subscription_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- AddForeignKey
-ALTER TABLE "consumer" ADD CONSTRAINT "consumer_khand_id_fkey" FOREIGN KEY ("khand_id") REFERENCES "hierarchy_node"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "consumer" ADD CONSTRAINT "consumer_mandal_id_fkey" FOREIGN KEY ("mandal_id") REFERENCES "hierarchy_node"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "consumer" ADD CONSTRAINT "consumer_gram_id_fkey" FOREIGN KEY ("gram_id") REFERENCES "hierarchy_node"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "consumer" ADD CONSTRAINT "consumer_registered_by_id_fkey" FOREIGN KEY ("registered_by_id") REFERENCES "user"("id") ON DELETE SET NULL ON UPDATE CASCADE;

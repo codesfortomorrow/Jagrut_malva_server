@@ -4,7 +4,6 @@ import { ConfigType } from '@nestjs/config';
 import { Profile, Strategy, VerifyCallback } from 'passport-google-oauth20';
 import { appConfigFactory, googleConfigFactory } from '@Config';
 import { GOOGLE_OAUTH } from '../auth.constants';
-import { UsersService } from '../../users';
 
 export class GoogleStrategy extends PassportStrategy(Strategy, GOOGLE_OAUTH) {
   constructor(
@@ -12,7 +11,6 @@ export class GoogleStrategy extends PassportStrategy(Strategy, GOOGLE_OAUTH) {
     appConfig: ConfigType<typeof appConfigFactory>,
     @Inject(googleConfigFactory.KEY)
     config: ConfigType<typeof googleConfigFactory>,
-    private readonly usersService: UsersService,
   ) {
     super({
       clientID: config.oauth.clientId as string,
@@ -29,20 +27,5 @@ export class GoogleStrategy extends PassportStrategy(Strategy, GOOGLE_OAUTH) {
     done: VerifyCallback,
   ): Promise<void> {
     return;
-    const { given_name, family_name, email, picture, sub } = profile._json;
-    if (!email) {
-      done(new UnprocessableEntityException('Profile email not public'));
-      return;
-    }
-
-    // const user = await this.usersService.getOrCreateByGoogle({
-    //   googleId: sub,
-    //   email,
-    //   firstname: given_name,
-    //   lastname: family_name,
-    //   profileImage: picture,
-    // });
-
-    // done(null, user);
   }
 }
