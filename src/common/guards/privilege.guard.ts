@@ -45,10 +45,10 @@ export class PrivilegeGuard implements CanActivate {
       throw new UnauthorizedException('Authentication required');
     }
 
-    // Top-level Administrator always has full access to all system privileges
-    if (user.type === UserType.Admin) {
-      return true;
-    }
+    // NOTE: no UserType.Admin bypass here anymore.
+    // Every admin-type account (Admin User, Manager, Editor, Org Member)
+    // must go through its actual assigned Role's privileges below.
+    // Only the ADMIN *role* (checked inside getUserPrivileges) gets full access.
 
     const privileges = await this.getUserPrivileges(user);
 
@@ -74,11 +74,9 @@ export class PrivilegeGuard implements CanActivate {
     const keys = new Set<string>();
 
     if (user.type === UserType.Admin) {
-      for (const p of PRIVILEGE_CATALOG) {
-        keys.add(p.key);
-      }
-    } else if (user.type === UserType.User) {
-      const userRoles = await this.prisma.admin.findMany({
+      // Admin-type accounts (Admin User, Manager, Editor, Org Member) all
+      // live in the Admin model and carry exactly one Role.
+      const admin = await this.prisma.admin.findUnique({
         where: { id: user.id },
         include: {
           role: {
@@ -87,13 +85,20 @@ export class PrivilegeGuard implements CanActivate {
         },
       });
 
-      for (const ur of userRoles) {
-        if (ur.role && (ur.role as any).status !== 'InActive') {
-          for (const rp of ur.role.privileges) {
+      if (admin?.role && (admin.role as any).status !== 'InActive') {
+        if (admin.role.name === ADMIN_ROLE_NAME) {
+          // Only the actual ADMIN role gets every privilege in the catalog.
+          for (const p of PRIVILEGE_CATALOG) {
+            keys.add(p.key);
+          }
+        } else {
+          for (const rp of admin.role.privileges) {
             if (rp.privilege?.key) keys.add(rp.privilege.key);
           }
         }
       }
+    } else if (user.type === UserType.User) {
+      // Consumer/mobile app users have no role system — no privileges.
     }
 
     await this.cacheManager.set(cacheKey, Array.from(keys), cacheTtl);

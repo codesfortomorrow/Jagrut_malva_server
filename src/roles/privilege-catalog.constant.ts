@@ -21,141 +21,102 @@ export interface ModuleDefinition {
   permissions: ExplicitPrivilegeDefinition[];
 }
 
+// ─── Privilege Catalog ────────────────────────────────────────────────────────
+// Exactly 23 privileges across 8 modules — mirrors the Role-to-Privilege
+// mapping defined in the product spec (Slack screenshot).
+//
+// Module         │ Actions                              │ Count
+// ───────────────┼──────────────────────────────────────┼──────
+// dashboard      │ view, report_view                    │  2
+// admin_users    │ view, create, edit, delete           │  4
+// roles          │ view, create, edit, delete           │  4
+// privileges     │ view                                 │  1
+// hierarchy      │ view, create, edit, delete           │  4
+// publish_issues │ view                                 │  1
+// dispatches     │ create, edit, delete, receive        │  4
+// consumers      │ view, create, edit                   │  3
+// ───────────────┼──────────────────────────────────────┼──────
+// Total          │                                      │ 23
+// ─────────────────────────────────────────────────────────────────────────────
+
 const MODULE_DEFINITIONS: ModuleDefinition[] = [
+  // ── 1. Dashboard ─────────────────────────────────────────────────────────────
   {
     module: 'dashboard',
     label: 'Dashboard',
     permissions: [
       {
         action: 'view',
-        description:
-          'View the dashboard and available archive summary information',
+        description: 'View the main dashboard and summary information',
+      },
+      {
+        action: 'report_view',
+        description: 'View dashboard reports and analytics',
       },
     ],
   },
+
+  // ── 2. Admin User Management ─────────────────────────────────────────────────
   {
-    module: 'geo_unit',
-    label: 'Geographic Unit Management',
-    permissions: [
-      {
-        action: 'create',
-        description:
-          'Create folders, collections, categories, and hierarchy units',
-      },
-      {
-        action: 'edit',
-        description: 'Modify existing geographic structure and hierarchy',
-      },
-      {
-        action: 'delete',
-        description: 'Delete folders, categories, and hierarchy structures',
-      },
-    ],
-  },
-  {
-    module: 'content_type',
-    label: 'Content Type Management',
-    permissions: [
-      {
-        action: 'create',
-        description: 'Create new content types',
-      },
-      {
-        action: 'edit',
-        description: 'Modify existing content types',
-      },
-      {
-        action: 'delete',
-        description: 'Delete content types',
-      },
-    ],
-  },
-  {
-    module: 'data',
-    label: 'Data Operations',
-    permissions: [
-      {
-        action: 'upload',
-        description: 'Upload files and bulk operational data',
-      },
-      {
-        action: 'edit',
-        description: 'Modify uploaded content and data within permitted scope',
-      },
-      {
-        action: 'delete',
-        description: 'Delete content and data within permitted scope',
-      },
-      {
-        action: 'migrate',
-        description: 'Import or migrate data from one category to another',
-      },
-      {
-        action: 'download',
-        description: 'Download permitted system data and files',
-      },
-      {
-        action: 'export',
-        description: 'Export data in CSV and other formats',
-      },
-    ],
-  },
-  {
-    module: 'content',
-    label: 'Content Workflow',
+    module: 'admin_users',
+    label: 'Admin User Management',
     permissions: [
       {
         action: 'view',
-        description: 'View content without editing it',
+        description: 'View admin user accounts and their assigned roles',
       },
       {
-        action: 'search',
-        description: 'Search and filter stored content',
+        action: 'create',
+        description: 'Create new admin user accounts with role assignments',
       },
       {
-        action: 'approve',
-        description: 'Approve or reject submitted content',
+        action: 'edit',
+        description: 'Edit admin user profiles and reassign roles',
       },
       {
-        action: 'publish',
-        description: 'Publish content to users',
-      },
-      {
-        action: 'unpublish',
-        description: 'Remove published content',
+        action: 'delete',
+        description: 'Block or deactivate admin user accounts',
       },
     ],
   },
-  {
-    module: 'access',
-    label: 'Access Management',
-    permissions: [
-      {
-        action: 'manage',
-        description: 'Control who can access specific content and structures',
-      },
-    ],
-  },
-  {
-    module: 'users',
-    label: 'User Management',
-    permissions: [
-      {
-        action: 'manage',
-        description: 'Create, edit, and deactivate system users',
-      },
-    ],
-  },
+
+  // ── 3. Role Management ────────────────────────────────────────────────────────
   {
     module: 'roles',
     label: 'Role Management',
     permissions: [
       {
-        action: 'manage',
-        description: 'Create and manage roles and their privileges',
+        action: 'view',
+        description: 'View roles and their assigned privilege sets',
+      },
+      {
+        action: 'create',
+        description: 'Create new custom roles',
+      },
+      {
+        action: 'edit',
+        description: 'Edit role names, descriptions, and privilege sets',
+      },
+      {
+        action: 'delete',
+        description: 'Delete custom roles that have no assigned users',
       },
     ],
   },
+
+  // ── 4. Privilege Catalog ──────────────────────────────────────────────────────
+  {
+    module: 'privileges',
+    label: 'Privilege Catalog',
+    permissions: [
+      {
+        action: 'view',
+        description: 'View the full catalog of available system privileges',
+      },
+    ],
+  },
+
+  // ── 5. Organization Hierarchy ─────────────────────────────────────────────────
   {
     module: 'hierarchy',
     label: 'Organization Hierarchy',
@@ -179,37 +140,24 @@ const MODULE_DEFINITIONS: ModuleDefinition[] = [
       },
     ],
   },
+
+  // ── 6. Patrika / Publish Issue ────────────────────────────────────────────────
   {
     module: 'publish_issues',
-    label: 'Publish Issue Management',
+    label: 'Patrika / Publish Issue',
     permissions: [
       {
         action: 'view',
-        description: 'View publish issues and their details',
-      },
-      {
-        action: 'create',
-        description: 'Create new publish issues',
-      },
-      {
-        action: 'edit',
-        description: 'Update publish issues and modify their lifecycle status',
-      },
-      {
-        action: 'delete',
-        description:
-          'Delete draft publish issues (must have no associated dispatches)',
+        description: 'View published issues and their dispatch details',
       },
     ],
   },
+
+  // ── 7. Dispatch & Tracking ────────────────────────────────────────────────────
   {
     module: 'dispatches',
     label: 'Magazine Dispatch & Tracking',
     permissions: [
-      {
-        action: 'view',
-        description: 'View dispatches, history, and chain of custody tracking',
-      },
       {
         action: 'create',
         description: 'Create dispatches for published magazine issues',
@@ -219,51 +167,21 @@ const MODULE_DEFINITIONS: ModuleDefinition[] = [
         description: 'Update dispatch tracking and transit details',
       },
       {
+        action: 'delete',
+        description: 'Cancel or remove unreceived dispatches',
+      },
+      {
         action: 'receive',
         description:
-          'Receive and verify dispatched consignments at hierarchy points',
-      },
-      {
-        action: 'forward',
-        description:
-          'Forward received consignments to downstream hierarchy points',
-      },
-      {
-        action: 'cancel',
-        description: 'Cancel unreceived or in-transit dispatches',
+          'Receive and verify dispatched consignments (receipt confirmation)',
       },
     ],
   },
-  {
-    module: 'designations',
-    label: 'Designation & Responsibility Management',
-    permissions: [
-      {
-        action: 'view',
-        description: 'View designations and user-designation assignments',
-      },
-      {
-        action: 'create',
-        description: 'Create designations',
-      },
-      {
-        action: 'edit',
-        description: 'Update designations and toggle status',
-      },
-      {
-        action: 'delete',
-        description: 'Delete unused designations',
-      },
-      {
-        action: 'assign',
-        description:
-          'Assign, reassign, or unassign designations to users at hierarchy nodes',
-      },
-    ],
-  },
+
+  // ── 8. Consumer / User Registration ──────────────────────────────────────────
   {
     module: 'consumers',
-    label: 'Consumer & Subscriber Management',
+    label: 'Consumer & User Registration',
     permissions: [
       {
         action: 'view',
@@ -271,15 +189,11 @@ const MODULE_DEFINITIONS: ModuleDefinition[] = [
       },
       {
         action: 'create',
-        description: 'Register new consumers through the registration form',
+        description: 'Register new consumers / subscribers',
       },
       {
         action: 'edit',
         description: 'Edit consumer personal, contact, and address details',
-      },
-      {
-        action: 'status',
-        description: 'Activate or deactivate consumer records',
       },
     ],
   },
@@ -314,4 +228,12 @@ export const PRIVILEGE_GROUPS: PrivilegeGroupDefinition[] =
 
 export const ADMIN_ROLE_NAME = 'ADMIN';
 export const ORGANIZATION_MEMBER_ROLE_NAME = 'ORGANIZATION_MEMBER';
-export const ORGANIZATION_MEMBER_DEFAULT_PRIVILEGES = ['dashboard.view'];
+export const ORGANIZATION_MEMBER_DEFAULT_PRIVILEGES = [
+  'dashboard.view',
+  'dashboard.report_view',
+  'publish_issues.view',
+  'dispatches.receive',
+  'consumers.view',
+  'consumers.create',
+  'consumers.edit',
+];
