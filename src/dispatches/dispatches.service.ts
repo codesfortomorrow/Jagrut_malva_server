@@ -69,6 +69,27 @@ const DISPATCH_INCLUDE = {
   },
 } as const;
 
+type DispatchWithRelations = Prisma.DispatchEntryGetPayload<{
+  include: typeof DISPATCH_INCLUDE;
+}>;
+
+/**
+ * Actions the currently logged-in user is allowed to perform on a given
+ * dispatch entry, computed server-side so the frontend never has to
+ * re-implement the authorization rules to decide which button to show.
+ *
+ * 'markInTransit' is kept in the union for completeness but should not
+ * appear in practice: create()/forward() now put new entries straight into
+ * InTransit, so DispatchStatus.Dispatched is effectively unreachable unless
+ * a future Draft-style flow re-introduces a staged dispatch.
+ */
+export type DispatchAction =
+  | 'markInTransit'
+  | 'receive'
+  | 'forward'
+  | 'complete'
+  | 'cancel';
+
 const HIERARCHY_LEVEL_RANK: Record<HierarchyLevel, number> = {
   [HierarchyLevel.Prant]: 1,
   [HierarchyLevel.Vibhag]: 2,
@@ -92,7 +113,7 @@ const ALLOWED_DOWNSTREAM_LEVEL: Partial<
 export class DispatchesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findOne(id: number) {
+  async findOne(id: number, user?: AuthenticatedUser) {
     const dispatch = await this.prisma.dispatchEntry.findUnique({
       where: { id },
       include: DISPATCH_INCLUDE,
@@ -102,7 +123,13 @@ export class DispatchesService {
       throw new NotFoundException(`Dispatch entry with ID ${id} not found`);
     }
 
-    return dispatch;
+    if (!user) {
+      return dispatch;
+    }
+
+    const availableActions = await this.computeAvailableActions(dispatch, user);
+
+    return { ...dispatch, availableActions };
   }
 
   async findAll(query: GetDispatchesRequestDto, user: AuthenticatedUser) {
@@ -164,18 +191,6 @@ export class DispatchesService {
       };
     }
 
-    /*
-     * Dispatch visibility:
-     *
-     * Admin:
-     * - Can see all dispatch entries.
-     *
-     * Non-admin:
-     * - Can see dispatches created by himself.
-     * - Can see pending incoming dispatches where the destination
-     *   matches his active hierarchy assignment.
-     * - Own dispatched entries are excluded from the receiver side.
-     */
     if (user.type !== UserType.Admin) {
       const activeAssignment =
         await this.prisma.userHierarchyDesignation.findFirst({
@@ -202,33 +217,23 @@ export class DispatchesService {
 
       const visibilityFilter: Prisma.DispatchEntryWhereInput = {
         OR: [
-          // Dispatcher can see his own dispatches.
           {
             dispatchedById: user.id,
           },
-
-          // Receiver can see only pending incoming dispatches
-          // addressed to his assigned hierarchy node.
           {
             toPointId: activeAssignment.nodeId,
             dispatchedById: {
               not: user.id,
             },
             status: {
-              in: [DispatchStatus.Dispatched, DispatchStatus.InTransit],
+              in: [DispatchStatus.InTransit],
             },
           },
         ],
       };
 
-      /*
-       * If search OR already exists, combine the visibility filter
-       * with the existing filters using AND.
-       */
       const existingOr = where.OR;
-
       delete where.OR;
-
       where.AND = [
         visibilityFilter,
         ...(existingOr ? [{ OR: existingOr }] : []),
@@ -250,11 +255,18 @@ export class DispatchesService {
       include: DISPATCH_INCLUDE,
     });
 
+    const dataWithActions = await Promise.all(
+      data.map(async (dispatch) => ({
+        ...dispatch,
+        availableActions: await this.computeAvailableActions(dispatch, user),
+      })),
+    );
+
     return {
       count,
       skip,
       take,
-      data,
+      data: dataWithActions,
     };
   }
 
@@ -437,6 +449,9 @@ export class DispatchesService {
     }
 
     // 6. Create Dispatch
+    // Starts directly in InTransit: a "dispatch" is itself the sender's
+    // forward action, so the receiving node should be able to see and
+    // review it immediately without a separate "mark in transit" step.
     return await this.prisma.dispatchEntry.create({
       data: {
         issueId: dto.issueId,
@@ -445,7 +460,7 @@ export class DispatchesService {
         quantity: dto.quantity,
         dispatchDate: dto.dispatchDate ?? new Date(),
         trackingLink: dto.trackingLink ?? null,
-        status: DispatchStatus.Dispatched,
+        status: DispatchStatus.InTransit,
         deliveryMethod: dto.deliveryMethod,
         dispatchedById: userId ?? null,
       },
@@ -453,6 +468,11 @@ export class DispatchesService {
     });
   }
 
+  /**
+   * Legacy manual transition. Not reachable in the current flow since
+   * create()/forward() now set InTransit directly. Kept only in case a
+   * future Draft-style flow re-introduces a staged Dispatched status.
+   */
   async setInTransit(id: number, dto?: InTransitDispatchRequestDto) {
     const dispatch = await this.findOne(id);
 
@@ -477,18 +497,17 @@ export class DispatchesService {
   async receive(id: number, dto: ReceiveDispatchRequestDto, userId: number) {
     const dispatch = await this.findOne(id);
 
-    if (
-      dispatch.status !== DispatchStatus.InTransit &&
-      dispatch.status !== DispatchStatus.Dispatched
-    ) {
+    if (dispatch.status !== DispatchStatus.InTransit) {
       throw new BadRequestException(
-        `Cannot receive dispatch in '${dispatch.status}' status. Only Dispatched or InTransit consignments can be received.`,
+        `Cannot receive dispatch in '${dispatch.status}' status. Only InTransit consignments can be received.`,
       );
     }
 
     /*
      * Only the user assigned to the destination hierarchy node
-     * can receive the dispatch.
+     * can receive the dispatch. This is deliberately NOT bypassable
+     * by Admin: receiving represents physical custody transfer at a
+     * location, not a permission that a role should be able to fake.
      */
     const activeAssignment =
       await this.prisma.userHierarchyDesignation.findFirst({
@@ -553,7 +572,11 @@ export class DispatchesService {
     });
   }
 
-  async forward(id: number, dto: ForwardDispatchRequestDto, userId?: number) {
+  async forward(
+    id: number,
+    dto: ForwardDispatchRequestDto,
+    user: AuthenticatedUser,
+  ) {
     if (dto.quantity <= 0) {
       throw new BadRequestException(
         'quantity must be a positive integer greater than 0',
@@ -574,6 +597,18 @@ export class DispatchesService {
 
     const sourcePointId = sourceDispatch.toPointId;
     const sourcePoint = sourceDispatch.toPoint;
+
+    // Only the user assigned to the node currently holding the stock
+    // (or an Admin, for administrative/central override) may forward it.
+    if (user.type !== UserType.Admin) {
+      const assignedNodeId = await this.getActiveAssignmentNodeId(user.id);
+
+      if (assignedNodeId !== sourcePointId) {
+        throw new BadRequestException(
+          'You are not authorized to forward this dispatch. It is not addressed to your assigned hierarchy node.',
+        );
+      }
+    }
 
     if (sourcePointId === dto.toPointId) {
       throw new BadRequestException(
@@ -649,7 +684,10 @@ export class DispatchesService {
     }
 
     return await this.prisma.$transaction(async (tx) => {
-      // 1. Create the new downstream dispatch entry
+      // 1. Create the new downstream dispatch entry.
+      // Starts directly in InTransit for the same reason create() does:
+      // "forward" is a single sender-facing action that should be
+      // immediately visible/reviewable to the next node.
       const newDispatch = await tx.dispatchEntry.create({
         data: {
           issueId: sourceDispatch.issueId,
@@ -658,9 +696,9 @@ export class DispatchesService {
           quantity: dto.quantity,
           dispatchDate: dto.dispatchDate ?? new Date(),
           trackingLink: dto.trackingLink ?? null,
-          status: DispatchStatus.Dispatched,
+          status: DispatchStatus.InTransit,
           deliveryMethod: dto.deliveryMethod ?? sourceDispatch.deliveryMethod,
-          dispatchedById: userId ?? null,
+          dispatchedById: user.id ?? null,
         },
         include: DISPATCH_INCLUDE,
       });
@@ -679,7 +717,7 @@ export class DispatchesService {
     });
   }
 
-  async cancel(id: number) {
+  async cancel(id: number, user: AuthenticatedUser) {
     const dispatch = await this.findOne(id);
 
     if (
@@ -697,6 +735,12 @@ export class DispatchesService {
       throw new BadRequestException('Dispatch is already cancelled');
     }
 
+    if (user.type !== UserType.Admin && dispatch.dispatchedById !== user.id) {
+      throw new BadRequestException(
+        'You are not authorized to cancel this dispatch. Only the dispatcher or an admin can cancel it.',
+      );
+    }
+
     return await this.prisma.dispatchEntry.update({
       where: { id },
       data: {
@@ -706,7 +750,7 @@ export class DispatchesService {
     });
   }
 
-  async complete(id: number) {
+  async complete(id: number, user: AuthenticatedUser) {
     const dispatch = await this.findOne(id);
 
     if (dispatch.status === DispatchStatus.Completed) {
@@ -727,6 +771,16 @@ export class DispatchesService {
       throw new BadRequestException(
         `Cannot mark dispatch as Completed in '${dispatch.status}' status. Completed represents completion of that dispatch's downstream distribution.`,
       );
+    }
+
+    if (user.type !== UserType.Admin) {
+      const assignedNodeId = await this.getActiveAssignmentNodeId(user.id);
+
+      if (assignedNodeId !== dispatch.toPointId) {
+        throw new BadRequestException(
+          'You are not authorized to complete this dispatch. It is not addressed to your assigned hierarchy node.',
+        );
+      }
     }
 
     return await this.prisma.dispatchEntry.update({
@@ -862,6 +916,87 @@ export class DispatchesService {
     }
 
     return false;
+  }
+
+  // Returns the nodeId of the user's current active hierarchy assignment, if any.
+  private async getActiveAssignmentNodeId(
+    userId: number,
+  ): Promise<number | null> {
+    const assignment = await this.prisma.userHierarchyDesignation.findFirst({
+      where: {
+        userId,
+        isActive: true,
+      },
+      select: {
+        nodeId: true,
+      },
+      orderBy: {
+        assignedAt: 'desc',
+      },
+    });
+
+    return assignment?.nodeId ?? null;
+  }
+
+  /**
+   * Computes which actions the given user may take on a dispatch entry,
+   * for the frontend to render the correct button(s) without duplicating
+   * these authorization rules itself. Mirrors the checks enforced inside
+   * receive() / forward() / complete() / cancel().
+   */
+  private async computeAvailableActions(
+    dispatch: DispatchWithRelations,
+    user: AuthenticatedUser,
+  ): Promise<DispatchAction[]> {
+    const actions: DispatchAction[] = [];
+    const isAdmin = user.type === UserType.Admin;
+    const assignedNodeId = await this.getActiveAssignmentNodeId(user.id);
+    const isAtDestination =
+      assignedNodeId !== null && assignedNodeId === dispatch.toPointId;
+
+    switch (dispatch.status) {
+      case DispatchStatus.InTransit:
+        // Receiving strictly requires physical assignment match; no Admin bypass.
+        if (isAtDestination && dispatch.dispatchedById !== user.id) {
+          actions.push('receive');
+        }
+        if (isAdmin || dispatch.dispatchedById === user.id) {
+          actions.push('cancel');
+        }
+        break;
+
+      case DispatchStatus.Received:
+      case DispatchStatus.Discrepancy: {
+        const canAct = isAdmin || isAtDestination;
+        if (canAct) {
+          if (dispatch.toPoint.level === HierarchyLevel.Gram) {
+            actions.push('complete');
+          } else {
+            actions.push('forward');
+          }
+        }
+        break;
+      }
+
+      case DispatchStatus.Forwarded:
+        if (isAdmin || isAtDestination) {
+          actions.push('complete');
+        }
+        break;
+
+      case DispatchStatus.Dispatched:
+        // Unreachable in the current flow; see setInTransit() doc comment.
+        if (isAdmin || dispatch.dispatchedById === user.id) {
+          actions.push('cancel');
+        }
+        break;
+
+      default:
+        // Completed / Cancelled: terminal, no actions.
+        break;
+    }
+
+    return actions;
   }
 
   // Get active source point and valid destination dropdown for current user

@@ -1,5 +1,11 @@
 import { ApiPropertyOptional, ApiSchema } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import {
+  IsEmail,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 @ApiSchema({ name: 'UpdateAdminProfileDetailsRequestDto' })
 export class UpdateProfileDetailsRequestDto {
@@ -19,4 +25,14 @@ export class UpdateProfileDetailsRequestDto {
   @IsOptional()
   @IsEmail()
   email?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  mobile?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  roleId?: number;
 }

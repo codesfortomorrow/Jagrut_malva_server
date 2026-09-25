@@ -88,8 +88,12 @@ export class DispatchesController extends BaseController {
   @Get(':id')
   @ApiOperation({ summary: 'Get dispatch details by ID' })
   @ApiParam({ name: 'id', description: 'Dispatch ID' })
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.dispatchesService.findOne(id);
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const ctx = this.getContext(req);
+    return this.dispatchesService.findOne(id, ctx.user);
   }
 
   @RequirePrivilege('dispatches.edit')
@@ -143,15 +147,19 @@ export class DispatchesController extends BaseController {
     @Req() req: AuthenticatedRequest,
   ) {
     const ctx = this.getContext(req);
-    return this.dispatchesService.forward(id, dto, ctx.user?.id);
+    return this.dispatchesService.forward(id, dto, ctx.user);
   }
 
   @RequirePrivilege('dispatches.cancel', 'dispatches.delete', 'dispatches.edit')
   @Patch(':id/cancel')
   @ApiOperation({ summary: 'Cancel an unreceived or in-transit dispatch' })
   @ApiParam({ name: 'id', description: 'Dispatch ID' })
-  cancel(@Param('id', ParseIntPipe) id: number) {
-    return this.dispatchesService.cancel(id);
+  cancel(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const ctx = this.getContext(req);
+    return this.dispatchesService.cancel(id, ctx.user);
   }
 
   @RequirePrivilege('dispatches.edit')
@@ -160,7 +168,11 @@ export class DispatchesController extends BaseController {
     summary: 'Mark completed after downstream distribution step is finished',
   })
   @ApiParam({ name: 'id', description: 'Dispatch ID' })
-  complete(@Param('id', ParseIntPipe) id: number) {
-    return this.dispatchesService.complete(id);
+  complete(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const ctx = this.getContext(req);
+    return this.dispatchesService.complete(id, ctx.user);
   }
 }

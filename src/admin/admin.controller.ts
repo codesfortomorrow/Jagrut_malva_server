@@ -34,6 +34,7 @@ import {
   ChangePasswordRequestDto,
   CreateAdminRequestDto,
   GetAdminUsersRequestDto,
+  UpdateAdminUserRequestDto,
   UpdateProfileDetailsRequestDto,
   UpdateProfileImageRequestDto,
 } from './dto';
@@ -54,19 +55,21 @@ export class AdminController extends BaseController {
     return await this.adminService.getProfile(ctx.user.id);
   }
 
-  @Patch()
-  async updateProfileDetails(
-    @Req() req: AuthenticatedRequest,
-    @Body() data: UpdateProfileDetailsRequestDto,
-  ) {
-    const ctx = this.getContext(req);
-    await this.adminService.updateProfileDetails(ctx.user.id, {
-      firstname: data.firstname,
-      lastname: data.lastname,
-      email: data.email,
-    });
-    return { status: 'success' };
-  }
+  // @Patch("me/update-profile")
+  // async updateProfileDetails(
+  //   @Req() req: AuthenticatedRequest,
+  //   @Body() data: UpdateProfileDetailsRequestDto,
+  // ) {
+  //   const ctx = this.getContext(req);
+  //   await this.adminService.updateProfileDetails(ctx.user.id, {
+  //     firstname: data.firstname,
+  //     lastname: data.lastname,
+  //     email: data.email,
+  //     mobile: data.mobile,
+  //     roleId: data.roleId
+  //   });
+  //   return { status: 'success' };
+  // }
 
   @Post('profile-image')
   updateProfileImage(
@@ -159,6 +162,28 @@ export class AdminController extends BaseController {
   @ApiResponse({ status: 404, description: 'User not found' })
   async getUserById(@Param('id', ParseIntPipe) id: number) {
     return await this.adminService.findUserById(id);
+  }
+
+  @Patch('users/update-details/:id')
+  @ApiOperation({
+    summary:
+      'Update details, role, or hierarchy assignments of an admin user by ID',
+  })
+  @ApiParam({ name: 'id', type: Number, description: 'Admin User ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Admin user details updated successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation failed or duplicate email/mobile',
+  })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async updateUser(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() data: UpdateAdminUserRequestDto,
+  ) {
+    return await this.adminService.updateUser(id, data);
   }
 
   @ApiParam({ name: 'userId', type: Number, description: 'Admin User ID' })
