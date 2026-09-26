@@ -158,7 +158,10 @@ export class DeliveryService {
     dto: MarkDeliveryLogRequestDto,
     user: AuthenticatedUser,
   ) {
-    if (dto.status === DeliveryLogStatus.Pending) {
+    if (
+      dto.status !== DeliveryLogStatus.Delivered &&
+      dto.status !== DeliveryLogStatus.Failed
+    ) {
       throw new BadRequestException('status must be Delivered or Failed');
     }
 
@@ -172,6 +175,11 @@ export class DeliveryService {
             id: true,
             toPointId: true,
             status: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
           },
         },
       },
@@ -206,22 +214,69 @@ export class DeliveryService {
       );
     }
 
-    const updated = await this.prisma.deliveryLog.update({
-      where: {
-        id,
-      },
-      data: {
-        status: dto.status,
-        remarks: dto.remarks ?? '',
-        deliveredAt: new Date(),
-        deliveredById: user.id,
-      },
-      include: DELIVERY_LOG_INCLUDE,
+    if (
+      dto.dispatchEntryId !== undefined &&
+      dto.dispatchEntryId !== log.dispatchEntryId
+    ) {
+      throw new BadRequestException(
+        'Consumer does not belong to the specified dispatch',
+      );
+    }
+
+    if (dto.issueId !== undefined && dto.issueId !== log.issueId) {
+      throw new BadRequestException(
+        'Consumer does not belong to the specified Patrika issue',
+      );
+    }
+
+    if (!dto.deliveryDate) {
+      throw new BadRequestException('deliveryDate is required');
+    }
+
+    const deliveryDate = new Date(dto.deliveryDate);
+
+    if (Number.isNaN(deliveryDate.getTime())) {
+      throw new BadRequestException('Invalid deliveryDate');
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const deliveryLog = await tx.deliveryLog.update({
+        where: {
+          id,
+        },
+        data: {
+          status: dto.status,
+          remarks: dto.remarks ?? '',
+          deliveredAt: new Date(dto.deliveryDate),
+          deliveredById: user.id,
+          proofReference: dto.deliveryProof ?? null,
+        },
+        include: DELIVERY_LOG_INCLUDE,
+      });
+
+      return deliveryLog;
     });
 
     await this.autoCompleteIfResolved(log.dispatchEntryId);
 
-    return updated;
+    return {
+      success: true,
+      message:
+        dto.status === DeliveryLogStatus.Delivered
+          ? 'Delivery confirmed successfully'
+          : 'Delivery marked as failed',
+
+      data: {
+        consumerId: updated.userId,
+        dispatchEntryId: updated.dispatchEntryId,
+        issueId: updated.issueId,
+        status: updated.status,
+        deliveryDate: updated.deliveredAt,
+        remarks: updated.remarks,
+        deliveredBy: updated.deliveredBy,
+        proofReference: updated.proofReference,
+      },
+    };
   }
 
   private async autoCompleteIfResolved(dispatchEntryId: number): Promise<void> {

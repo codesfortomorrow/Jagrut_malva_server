@@ -75,7 +75,6 @@ export class DeliveryController extends BaseController {
     @Req() req: AuthenticatedRequest,
   ) {
     const ctx = this.getContext(req);
-
     return this.deliveryLogsService.markDelivered(id, dto, ctx.user);
   }
 }

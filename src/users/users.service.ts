@@ -38,8 +38,6 @@ export type UserWithRelations = Prisma.UserGetPayload<{
   include: typeof USER_INCLUDE;
 }>;
 
-// Shape returned by getUserById() / findAllUsers(): the raw relations plus
-// a convenience `activeSubscription` pulled out of the `subscriptions` array.
 export type UserWithSubscriptionSummary = UserWithRelations & {
   activeSubscription: UserWithRelations['subscriptions'][number] | null;
 };
@@ -465,8 +463,13 @@ export class UsersService {
     await this.getUserById(id);
 
     try {
-      await this.prisma.user.delete({
-        where: { id },
+      await this.prisma.user.update({
+        where: {
+          id,
+        },
+        data: {
+          status: UserStatus.Blocked,
+        },
       });
     } catch (error) {
       if (

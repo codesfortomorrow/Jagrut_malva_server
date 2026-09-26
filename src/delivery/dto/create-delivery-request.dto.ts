@@ -1,27 +1,54 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsString, Length, ValidateIf } from 'class-validator';
+import {
+  IsDateString,
+  IsEnum,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 import { DeliveryLogStatus } from '../../generated/prisma/enums';
 
 export class MarkDeliveryLogRequestDto {
   @ApiProperty({
-    description: 'Outcome of the delivery attempt',
-    enum: [DeliveryLogStatus.Delivered, DeliveryLogStatus.Failed],
+    enum: DeliveryLogStatus,
+    example: DeliveryLogStatus.Delivered,
   })
-  @IsEnum([DeliveryLogStatus.Delivered, DeliveryLogStatus.Failed], {
-    message: 'status must be either Delivered or Failed',
-  })
+  @IsEnum(DeliveryLogStatus)
   status: DeliveryLogStatus;
 
+  @ApiProperty({
+    example: '2026-09-26T10:30:00.000Z',
+  })
+  @IsNotEmpty()
+  @IsDateString()
+  deliveryDate: string;
+
   @ApiPropertyOptional({
-    description:
-      'Required when status is Failed — reason the parcel could not be delivered (e.g. consumer moved, not at home)',
+    example: 'Delivered to consumer personally',
   })
-  @ValidateIf(
-    (o: MarkDeliveryLogRequestDto) => o.status === DeliveryLogStatus.Failed,
-  )
+  @IsOptional()
   @IsString()
-  @Length(1, 300, {
-    message: 'remarks is required when status is Failed',
-  })
   remarks?: string;
+
+  @ApiPropertyOptional({
+    example: 'delivery-proofs/dispatch-123/user-456.jpg',
+  })
+  @IsOptional()
+  @IsString()
+  deliveryProof?: string;
+
+  @ApiPropertyOptional({
+    example: 123,
+  })
+  @IsOptional()
+  @IsInt()
+  dispatchEntryId?: number;
+
+  @ApiPropertyOptional({
+    example: 456,
+  })
+  @IsOptional()
+  @IsInt()
+  issueId?: number;
 }

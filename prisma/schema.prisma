@@ -453,6 +453,7 @@ model DeliveryLog {
   deliveredBy     Admin?            @relation("DeliveryLogsDelivered", fields: [deliveredById], references: [id], onDelete: SetNull)
   deliveredById   Int?              @map("delivered_by_id")
   remarks         String            @default("")
+  proofReference  String?
   createdAt       DateTime          @default(now()) @map("created_at")
   updatedAt       DateTime          @updatedAt @map("updated_at")
 
