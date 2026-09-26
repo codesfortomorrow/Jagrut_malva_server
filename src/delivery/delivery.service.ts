@@ -40,7 +40,6 @@ export class DeliveryService {
     dispatchEntryId: number;
     issueId: number;
     gramNodeId: number;
-    receivedQuantity: number;
   }): Promise<void> {
     const existingCount = await this.prisma.deliveryLog.count({
       where: {
@@ -48,9 +47,9 @@ export class DeliveryService {
       },
     });
 
-    if (existingCount > 0) return;
-
-    if (params.receivedQuantity <= 0) return;
+    if (existingCount > 0) {
+      return;
+    }
 
     const eligibleUsers = await this.prisma.user.findMany({
       where: {
@@ -68,7 +67,6 @@ export class DeliveryService {
       orderBy: {
         id: 'asc',
       },
-      take: params.receivedQuantity,
     });
 
     if (eligibleUsers.length === 0) {
@@ -76,10 +74,10 @@ export class DeliveryService {
     }
 
     await this.prisma.deliveryLog.createMany({
-      data: eligibleUsers.map((u) => ({
+      data: eligibleUsers.map((user) => ({
         dispatchEntryId: params.dispatchEntryId,
         issueId: params.issueId,
-        userId: u.id,
+        userId: user.id,
         status: DeliveryLogStatus.Pending,
       })),
     });
@@ -90,12 +88,15 @@ export class DeliveryService {
       ...(query.dispatchEntryId && {
         dispatchEntryId: query.dispatchEntryId,
       }),
+
       ...(query.issueId && {
         issueId: query.issueId,
       }),
+
       ...(query.status && {
         status: query.status,
       }),
+
       ...(query.gramId && {
         dispatchEntry: {
           toPointId: query.gramId,
@@ -108,6 +109,7 @@ export class DeliveryService {
 
     const [count, logs] = await Promise.all([
       this.prisma.deliveryLog.count({ where }),
+
       this.prisma.deliveryLog.findMany({
         where,
         skip,
@@ -115,7 +117,36 @@ export class DeliveryService {
         orderBy: {
           id: 'asc',
         },
-        include: DELIVERY_LOG_INCLUDE,
+        include: {
+          user: {
+            select: {
+              id: true,
+              fullName: true,
+              whatsappMobile: true,
+              fullAddress: true,
+            },
+          },
+
+          dispatchEntry: {
+            select: {
+              id: true,
+            },
+          },
+
+          issue: {
+            select: {
+              id: true,
+            },
+          },
+
+          deliveredBy: {
+            select: {
+              id: true,
+              firstname: true,
+              lastname: true,
+            },
+          },
+        },
       }),
     ]);
 
@@ -123,7 +154,18 @@ export class DeliveryService {
       count,
       skip,
       take,
-      data: logs,
+
+      data: logs.map((log) => ({
+        id: log.id,
+        consumerId: log.userId,
+        dispatchId: log.dispatchEntryId,
+        issueId: log.issueId,
+        status: log.status,
+        deliveryDate: log.deliveredAt,
+        remarks: log.remarks,
+        deliveryProof: log.proofReference,
+        deliveredBy: log.deliveredBy,
+      })),
     };
   }
 

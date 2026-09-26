@@ -570,7 +570,6 @@ export class DispatchesService {
         dispatchEntryId: updated.id,
         issueId: updated.issueId,
         gramNodeId: updated.toPointId,
-        receivedQuantity: dto.receivedQuantity,
       });
     }
 
