@@ -9,6 +9,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -22,8 +23,16 @@ import {
 } from '@nestjs/swagger';
 import { AuthenticatedRequest, BaseController, JwtAuthGuard } from '@Common';
 import { User, UserStatus } from '../generated/prisma/client';
-import { CreateUserRequestDto, UpdateUserRequestDto } from './dto';
-import { UsersService } from './users.service';
+import {
+  CreateUserRequestDto,
+  GetUsersRequestDto,
+  UpdateUserRequestDto,
+} from './dto';
+import {
+  PaginatedResult,
+  UsersService,
+  UserWithSubscriptionSummary,
+} from './users.service';
 
 @UseGuards(JwtAuthGuard)
 @ApiTags('Users')
@@ -72,8 +81,10 @@ export class UsersController extends BaseController {
     status: HttpStatus.OK,
     description: 'Users retrieved successfully',
   })
-  async getUsers(): Promise<User[]> {
-    return this.usersService.getUsers();
+  async getUsers(
+    @Query() query: GetUsersRequestDto,
+  ): Promise<PaginatedResult<UserWithSubscriptionSummary>> {
+    return this.usersService.findAllUsers(query);
   }
 
   @Get(':id')
@@ -95,7 +106,9 @@ export class UsersController extends BaseController {
     status: HttpStatus.NOT_FOUND,
     description: 'User not found',
   })
-  async getUserById(@Param('id', ParseIntPipe) id: number): Promise<User> {
+  async getUserById(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<UserWithSubscriptionSummary> {
     return this.usersService.getUserById(id);
   }
 
