@@ -13,8 +13,29 @@ import {
   UserStatus,
 } from '../generated/prisma/client';
 import { PrismaService } from '../prisma';
-import { CreateUserRequestDto } from './dto';
-import { UpdateUserRequestDto } from './dto/ update-user-request.dto';
+import {
+  CreateUserRequestDto,
+  GetUsersRequestDto,
+  UpdateUserRequestDto,
+} from './dto';
+
+const USER_INCLUDE = {
+  vibhag: { select: { id: true, name: true, level: true } },
+  jila: { select: { id: true, name: true, level: true } },
+  khand: { select: { id: true, name: true, level: true } },
+  mandal: { select: { id: true, name: true, level: true } },
+  gram: { select: { id: true, name: true, level: true } },
+  registeredBy: {
+    select: { id: true, firstname: true, lastname: true, email: true },
+  },
+  subscriptions: {
+    orderBy: { createdAt: 'desc' },
+  },
+} as const;
+
+type UserWithRelations = Prisma.UserGetPayload<{
+  include: typeof USER_INCLUDE;
+}>;
 
 @Injectable()
 export class UsersService {
@@ -196,6 +217,16 @@ export class UsersService {
     }
   }
 
+  private formatUser(user: UserWithRelations) {
+    const activeSubscription =
+      user.subscriptions.find((s) => s.isActive) ?? null;
+
+    return {
+      ...user,
+      activeSubscription,
+    };
+  }
+
   async registerUser(
     dto: CreateUserRequestDto,
     registeredById: number,
@@ -237,28 +268,64 @@ export class UsersService {
     }
   }
 
-  async getUserById(id: number): Promise<User> {
+  async getUserById(id: number) {
     const user = await this.prisma.user.findUnique({
       where: { id },
+      include: USER_INCLUDE,
     });
 
     if (!user) {
       throw new NotFoundException(`User with id ${id} not found`);
     }
 
-    return user;
+    return this.formatUser(user);
   }
 
-  async getUsers(): Promise<User[]> {
-    return this.prisma.user.findMany({
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+  async findAllUsers(query: GetUsersRequestDto): Promise<{}> {
+    const search = query.search?.trim();
+    const where: Prisma.UserWhereInput = {
+      ...(query.status && { status: query.status }),
+      ...(query.vibhagId && { vibhagId: query.vibhagId }),
+      ...(query.jilaId && { jilaId: query.jilaId }),
+      ...(query.khandId && { khandId: query.khandId }),
+      ...(query.mandalId && { mandalId: query.mandalId }),
+      ...(query.gramId && { gramId: query.gramId }),
+      ...(query.registeredById && { registeredById: query.registeredById }),
+      ...(search && {
+        OR: [
+          { fullName: { contains: search, mode: 'insensitive' } },
+          { fatherName: { contains: search, mode: 'insensitive' } },
+          { whatsappMobile: { contains: search } },
+          { registrarName: { contains: search, mode: 'insensitive' } },
+        ],
+      }),
+    };
+
+    const skip = query.skip ?? 0;
+    const take = query.take ?? 20;
+
+    const [count, users] = await Promise.all([
+      this.prisma.user.count({ where }),
+      this.prisma.user.findMany({
+        where,
+        skip,
+        take,
+        orderBy: { createdAt: 'desc' },
+        include: USER_INCLUDE,
+      }),
+    ]);
+
+    const data = users.map((u) => this.formatUser(u));
+
+    return { count, skip, take, data };
   }
 
   async updateUser(id: number, dto: UpdateUserRequestDto): Promise<User> {
-    const existingUser = await this.getUserById(id);
+    const existingUser = await this.prisma.user.findUnique({ where: { id } });
+
+    if (!existingUser) {
+      throw new NotFoundException(`User with id ${id} not found`);
+    }
 
     const whatsappMobile = dto.whatsappMobile ?? existingUser.whatsappMobile;
 

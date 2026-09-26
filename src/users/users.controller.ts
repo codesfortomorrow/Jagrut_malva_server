@@ -9,6 +9,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -22,7 +23,11 @@ import {
 } from '@nestjs/swagger';
 import { AuthenticatedRequest, BaseController, JwtAuthGuard } from '@Common';
 import { User, UserStatus } from '../generated/prisma/client';
-import { CreateUserRequestDto, UpdateUserRequestDto } from './dto';
+import {
+  CreateUserRequestDto,
+  GetUsersRequestDto,
+  UpdateUserRequestDto,
+} from './dto';
 import { UsersService } from './users.service';
 
 @UseGuards(JwtAuthGuard)
@@ -72,8 +77,8 @@ export class UsersController extends BaseController {
     status: HttpStatus.OK,
     description: 'Users retrieved successfully',
   })
-  async getUsers(): Promise<User[]> {
-    return this.usersService.getUsers();
+  async getUsers(@Query() query: GetUsersRequestDto) {
+    return this.usersService.findAllUsers(query);
   }
 
   @Get(':id')
