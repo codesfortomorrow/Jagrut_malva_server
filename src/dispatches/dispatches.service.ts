@@ -21,6 +21,7 @@ import {
   ReceiveDispatchRequestDto,
   UpdateDispatchEntryRequestDto,
 } from './dto';
+import { DeliveryService } from 'src/delivery';
 
 const DISPATCH_INCLUDE = {
   issue: {
@@ -111,7 +112,10 @@ const ALLOWED_DOWNSTREAM_LEVEL: Partial<
 
 @Injectable()
 export class DispatchesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly deliveryLogsService: DeliveryService,
+  ) {}
 
   async findOne(id: number, user?: AuthenticatedUser) {
     const dispatch = await this.prisma.dispatchEntry.findUnique({
@@ -503,12 +507,6 @@ export class DispatchesService {
       );
     }
 
-    /*
-     * Only the user assigned to the destination hierarchy node
-     * can receive the dispatch. This is deliberately NOT bypassable
-     * by Admin: receiving represents physical custody transfer at a
-     * location, not a permission that a role should be able to fake.
-     */
     const activeAssignment =
       await this.prisma.userHierarchyDesignation.findFirst({
         where: {
@@ -535,10 +533,6 @@ export class DispatchesService {
       );
     }
 
-    /*
-     * The user who dispatched a consignment cannot receive
-     * the same consignment.
-     */
     if (dispatch.dispatchedById === userId) {
       throw new BadRequestException(
         'The user who dispatched the consignment cannot receive the same consignment.',
@@ -560,7 +554,7 @@ export class DispatchesService {
         ? DispatchStatus.Received
         : DispatchStatus.Discrepancy;
 
-    return await this.prisma.dispatchEntry.update({
+    const updated = await this.prisma.dispatchEntry.update({
       where: { id },
       data: {
         receivedQuantity: dto.receivedQuantity,
@@ -570,6 +564,17 @@ export class DispatchesService {
       },
       include: DISPATCH_INCLUDE,
     });
+
+    if (updated.toPoint.level === HierarchyLevel.Gram) {
+      await this.deliveryLogsService.generateForDispatch({
+        dispatchEntryId: updated.id,
+        issueId: updated.issueId,
+        gramNodeId: updated.toPointId,
+        receivedQuantity: dto.receivedQuantity,
+      });
+    }
+
+    return updated;
   }
 
   async forward(
@@ -598,8 +603,6 @@ export class DispatchesService {
     const sourcePointId = sourceDispatch.toPointId;
     const sourcePoint = sourceDispatch.toPoint;
 
-    // Only the user assigned to the node currently holding the stock
-    // (or an Admin, for administrative/central override) may forward it.
     if (user.type !== UserType.Admin) {
       const assignedNodeId = await this.getActiveAssignmentNodeId(user.id);
 
@@ -968,13 +971,13 @@ export class DispatchesService {
       case DispatchStatus.Received:
       case DispatchStatus.Discrepancy: {
         const canAct = isAdmin || isAtDestination;
-        if (canAct) {
-          if (dispatch.toPoint.level === HierarchyLevel.Gram) {
-            actions.push('complete');
-          } else {
-            actions.push('forward');
-          }
+        if (canAct && dispatch.toPoint.level !== HierarchyLevel.Gram) {
+          actions.push('forward');
         }
+        // At Gram level, completion now happens automatically once every
+        // consumer's delivery log is resolved (see DeliveryLogsService) —
+        // no manual action to surface here. The frontend should route to
+        // the delivery log board for this dispatch instead.
         break;
       }
 

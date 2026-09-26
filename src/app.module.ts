@@ -20,6 +20,7 @@ import { DispatchesModule } from './dispatches';
 import { DesignationsModule } from './designations';
 import { UsersModule } from './users';
 import { SubscriptionModule } from './subscription/subscription.module';
+import { DeliveryModule } from './delivery';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { SubscriptionModule } from './subscription/subscription.module';
     DesignationsModule,
     UsersModule,
     SubscriptionModule,
+    DeliveryModule,
   ],
   controllers: [AppController],
   providers: [

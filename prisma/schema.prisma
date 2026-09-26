@@ -53,6 +53,7 @@ model Admin {
   subordinateAssignments UserHierarchyDesignation[] @relation("ReportingManager")
   publishedIssues        PublishIssue[]             @relation("PublishedIssues")
   registeredUsers        User[]                     @relation("RegisteredUsers")
+  deliveredParcels       DeliveryLog[]              @relation("DeliveryLogsDelivered")
 
   @@map("admin")
 }
@@ -103,6 +104,7 @@ model User {
   status           UserStatus    @default(Active)
 
   subscriptions Subscription[]
+  deliveryLogs  DeliveryLog[]
   createdAt     DateTime       @default(now()) @map("created_at")
   updatedAt     DateTime       @updatedAt @map("updated_at")
   settings      UserSetting[]
@@ -362,6 +364,7 @@ model PublishIssue {
   publishedBy   Admin?             @relation("PublishedIssues", fields: [publishedById], references: [id], onDelete: SetNull)
   publishedById Int?               @map("published_by_id")
   dispatches    DispatchEntry[]
+  deliveryLogs  DeliveryLog[]
   createdAt     DateTime           @default(now()) @map("created_at")
   updatedAt     DateTime           @updatedAt @map("updated_at")
 
@@ -412,6 +415,7 @@ model DispatchEntry {
   receivedById     Int?           @map("received_by_id")
   dispatchedBy     Admin?         @relation("DispatchesCreated", fields: [dispatchedById], references: [id], onDelete: Restrict)
   dispatchedById   Int?           @map("dispatched_by_id")
+  deliveryLogs     DeliveryLog[]
   createdAt        DateTime       @default(now()) @map("created_at")
   updatedAt        DateTime       @updatedAt @map("updated_at")
 
@@ -424,6 +428,41 @@ model DispatchEntry {
   @@index([receivedById])
   @@index([dispatchedById])
   @@map("dispatch_entry")
+}
+
+// ─── Jagrut Malwa: Delivery Log Module ────────────────────────────────────────
+
+enum DeliveryLogStatus {
+  Pending   @map("pending")
+  Delivered @map("delivered")
+  Failed    @map("failed")
+
+  @@map("delivery_log_status")
+}
+
+model DeliveryLog {
+  id              Int               @id @default(autoincrement())
+  dispatchEntry   DispatchEntry     @relation(fields: [dispatchEntryId], references: [id], onDelete: Restrict)
+  dispatchEntryId Int               @map("dispatch_entry_id")
+  issue           PublishIssue      @relation(fields: [issueId], references: [id], onDelete: Restrict)
+  issueId         Int               @map("issue_id")
+  user            User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  userId          Int               @map("user_id")
+  status          DeliveryLogStatus @default(Pending)
+  deliveredAt     DateTime?         @map("delivered_at")
+  deliveredBy     Admin?            @relation("DeliveryLogsDelivered", fields: [deliveredById], references: [id], onDelete: SetNull)
+  deliveredById   Int?              @map("delivered_by_id")
+  remarks         String            @default("")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  @@unique([dispatchEntryId, userId])
+  @@index([dispatchEntryId])
+  @@index([dispatchEntryId, status])
+  @@index([issueId])
+  @@index([userId])
+  @@index([status])
+  @@map("delivery_log")
 }
 
 // ─── Jagrut Malwa: Subscription Module ────────────────────────────────────────
