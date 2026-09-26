@@ -34,6 +34,7 @@ import {
   UserWithSubscriptionSummary,
 } from './users.service';
 
+console.log('hello conflicts');
 @UseGuards(JwtAuthGuard)
 @ApiTags('Users')
 @ApiBearerAuth()
