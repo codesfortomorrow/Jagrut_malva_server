@@ -23,7 +23,7 @@ export interface ModuleDefinition {
 }
 
 // ─── Complete Privilege Catalog ───────────────────────────────────────────────
-// Exactly 45 privileges across 12 modules matching the new catalog specification.
+// Exactly 47 privileges across 12 modules matching the new catalog specification.
 //
 // 1.  Dashboard (dashboard)                          -> 2
 // 2.  Admin User Management (admin_users)            -> 4
@@ -31,14 +31,14 @@ export interface ModuleDefinition {
 // 4.  Privilege Catalog (privileges)                 -> 1
 // 5.  Organization Hierarchy (hierarchy)             -> 4
 // 6.  Patrika / Publish Issue (publish_issues)       -> 3
-// 7.  Magazine Dispatch & Tracking (dispatches)      -> 7
-// 8.  User Registration (consumers)                  -> 3
+// 7.  Magazine Dispatch & Tracking (dispatches)      -> 8
+// 8.  User Registration (consumers)                  -> 4
 // 9.  Content Type Management (content_types)        -> 5
 // 10. Data Management (data)                         -> 6
 // 11. Access Management (access_management)          -> 1
 // 12. Designation (designation)                      -> 5
 // ──────────────────────────────────────────────────────────
-// Total: 45 privileges
+// Total: 47 privileges
 // ──────────────────────────────────────────────────────────
 
 export const MODULE_DEFINITIONS: ModuleDefinition[] = [
@@ -217,6 +217,12 @@ export const MODULE_DEFINITIONS: ModuleDefinition[] = [
         description: 'Confirm and verify received dispatched consignments',
       },
       {
+        key: 'dispatches.complete',
+        action: 'complete',
+        description:
+          'Complete a dispatch after all assigned consumers have received their Patrika',
+      },
+      {
         key: 'dispatch.view',
         action: 'view',
         description: 'View dispatch entries, consignment tracking, and history',
@@ -243,6 +249,12 @@ export const MODULE_DEFINITIONS: ModuleDefinition[] = [
         key: 'user.edit',
         action: 'edit',
         description: 'Edit user personal, contact, and address details',
+      },
+      {
+        key: 'user.confirm_delivery',
+        action: 'confirm_delivery',
+        description:
+          "Confirm delivery of a Patrika copy to an individual assigned consumer, updating that consumer's delivery status to Delivered",
       },
     ],
   },
@@ -398,9 +410,19 @@ export const ADMIN_ROLE_NAME = 'ADMIN';
 export const MANAGER_ROLE_NAME = 'MANAGER';
 export const EDITOR_ROLE_NAME = 'EDITOR';
 export const ORGANIZATION_MEMBER_ROLE_NAME = 'ORGANIZATION_MEMBER';
+export const LAST_MILE_DELIVERY_ROLE_NAME = 'LAST_MILE_DELIVERY';
 
 // ── Role Privilege Definitions ────────────────────────────────────────────────
-export const ADMIN_PRIVILEGES: string[] = PRIVILEGE_CATALOG.map((p) => p.key);
+// Tickets #118 / #119: exclusive to LAST_MILE_DELIVERY, withheld even from
+// Admin — carved out of the superset below rather than granted by default.
+export const LAST_MILE_EXCLUSIVE_PRIVILEGES: string[] = [
+  'user.confirm_delivery',
+  'dispatches.complete',
+];
+
+export const ADMIN_PRIVILEGES: string[] = PRIVILEGE_CATALOG.map(
+  (p) => p.key,
+).filter((key) => !LAST_MILE_EXCLUSIVE_PRIVILEGES.includes(key));
 
 export const MANAGER_PRIVILEGES: string[] = [
   // 1. Dashboard
@@ -495,15 +517,42 @@ export const ORGANIZATION_MEMBER_DEFAULT_PRIVILEGES: string[] = [
   'user.edit',
 ];
 
+// Tickets #118 / #119: default privilege set for the last-mile delivery role.
+export const LAST_MILE_DELIVERY_PRIVILEGES: string[] = [
+  // 1. Dashboard
+  'dashboard.view',
+  // 7. Magazine Dispatch & Tracking
+  'dispatch.view',
+  'dispatches.receive',
+  'dispatches.complete',
+  // 8. User Registration
+  'user.view',
+  'user.confirm_delivery',
+];
+
 // ── Key Aliases (Bidirectional resolution between formats and naming variants) ──
 export const PRIVILEGE_KEY_ALIASES: Record<string, string[]> = {
   // Consumers / User Registration
   'user.view': ['consumers.view', 'user_view'],
   'user.create': ['consumers.create', 'user_create'],
   'user.edit': ['consumers.edit', 'user_edit'],
+  'user.confirm_delivery': [
+    'consumers.confirm_delivery',
+    'dispatch.confirm_delivery',
+    'dispatches.confirm_delivery',
+    'user_confirm_delivery',
+  ],
   'consumers.view': ['user.view', 'user_view'],
   'consumers.create': ['user.create', 'user_create'],
   'consumers.edit': ['user.edit', 'user_edit'],
+  'consumers.confirm_delivery': [
+    'user.confirm_delivery',
+    'dispatch.confirm_delivery',
+    'dispatches.confirm_delivery',
+    'user_confirm_delivery',
+  ],
+  'dispatch.confirm_delivery': ['user.confirm_delivery'],
+  'dispatches.confirm_delivery': ['user.confirm_delivery'],
 
   // Dispatches
   'dispatch.view': ['dispatches.view', 'dispatch_view'],
@@ -516,6 +565,8 @@ export const PRIVILEGE_KEY_ALIASES: Record<string, string[]> = {
   'dispatches.delete': ['dispatches.cancel', 'dispatch_delete'],
   'dispatches.forward': ['dispatch_forward'],
   'dispatches.in_transit': ['dispatch_in_transit', 'dispatches_in_transit'],
+  'dispatches.complete': ['dispatch.complete', 'dispatch_complete'],
+  'dispatch.complete': ['dispatches.complete', 'dispatch_complete'],
 
   // Publish Issues
   'publish_issues.view': ['issue_view', 'publish_issues_view'],

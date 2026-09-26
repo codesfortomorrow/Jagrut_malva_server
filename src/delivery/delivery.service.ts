@@ -1,9 +1,10 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { AuthenticatedUser, UserType } from '@Common';
+import { AuthenticatedUser } from '@Common';
 import { PrismaService } from '../prisma';
 import {
   DeliveryLogStatus,
@@ -23,7 +24,11 @@ const DELIVERY_LOG_INCLUDE = {
     },
   },
   deliveredBy: {
-    select: { id: true, firstname: true, lastname: true },
+    select: {
+      id: true,
+      firstname: true,
+      lastname: true,
+    },
   },
 } as const;
 
@@ -38,20 +43,31 @@ export class DeliveryService {
     receivedQuantity: number;
   }): Promise<void> {
     const existingCount = await this.prisma.deliveryLog.count({
-      where: { dispatchEntryId: params.dispatchEntryId },
+      where: {
+        dispatchEntryId: params.dispatchEntryId,
+      },
     });
 
     if (existingCount > 0) return;
+
     if (params.receivedQuantity <= 0) return;
 
     const eligibleUsers = await this.prisma.user.findMany({
       where: {
         gramId: params.gramNodeId,
         status: UserStatus.Active,
-        subscriptions: { some: { isActive: true } },
+        subscriptions: {
+          some: {
+            isActive: true,
+          },
+        },
       },
-      select: { id: true },
-      orderBy: { id: 'asc' },
+      select: {
+        id: true,
+      },
+      orderBy: {
+        id: 'asc',
+      },
       take: params.receivedQuantity,
     });
 
@@ -71,11 +87,19 @@ export class DeliveryService {
 
   async findAll(query: GetDeliveryLogsRequestDto) {
     const where: Prisma.DeliveryLogWhereInput = {
-      ...(query.dispatchEntryId && { dispatchEntryId: query.dispatchEntryId }),
-      ...(query.issueId && { issueId: query.issueId }),
-      ...(query.status && { status: query.status }),
+      ...(query.dispatchEntryId && {
+        dispatchEntryId: query.dispatchEntryId,
+      }),
+      ...(query.issueId && {
+        issueId: query.issueId,
+      }),
+      ...(query.status && {
+        status: query.status,
+      }),
       ...(query.gramId && {
-        dispatchEntry: { toPointId: query.gramId },
+        dispatchEntry: {
+          toPointId: query.gramId,
+        },
       }),
     };
 
@@ -88,19 +112,30 @@ export class DeliveryService {
         where,
         skip,
         take,
-        orderBy: { id: 'asc' },
+        orderBy: {
+          id: 'asc',
+        },
         include: DELIVERY_LOG_INCLUDE,
       }),
     ]);
 
-    return { count, skip, take, data: logs };
+    return {
+      count,
+      skip,
+      take,
+      data: logs,
+    };
   }
 
   async findAllForDispatch(dispatchEntryId: number) {
     const logs = await this.prisma.deliveryLog.findMany({
-      where: { dispatchEntryId },
+      where: {
+        dispatchEntryId,
+      },
       include: DELIVERY_LOG_INCLUDE,
-      orderBy: { id: 'asc' },
+      orderBy: {
+        id: 'asc',
+      },
     });
 
     const summary = {
@@ -112,7 +147,10 @@ export class DeliveryService {
       failed: logs.filter((l) => l.status === DeliveryLogStatus.Failed).length,
     };
 
-    return { summary, logs };
+    return {
+      summary,
+      logs,
+    };
   }
 
   async markDelivered(
@@ -125,10 +163,16 @@ export class DeliveryService {
     }
 
     const log = await this.prisma.deliveryLog.findUnique({
-      where: { id },
+      where: {
+        id,
+      },
       include: {
         dispatchEntry: {
-          select: { id: true, toPointId: true, status: true },
+          select: {
+            id: true,
+            toPointId: true,
+            status: true,
+          },
         },
       },
     });
@@ -143,22 +187,29 @@ export class DeliveryService {
       );
     }
 
-    if (user.type !== UserType.Admin) {
-      const assignment = await this.prisma.userHierarchyDesignation.findFirst({
-        where: { userId: user.id, isActive: true },
-        select: { nodeId: true },
-        orderBy: { assignedAt: 'desc' },
-      });
+    const assignment = await this.prisma.userHierarchyDesignation.findFirst({
+      where: {
+        userId: user.id,
+        isActive: true,
+      },
+      select: {
+        nodeId: true,
+      },
+      orderBy: {
+        assignedAt: 'desc',
+      },
+    });
 
-      if (!assignment || assignment.nodeId !== log.dispatchEntry.toPointId) {
-        throw new BadRequestException(
-          'You are not authorized to record deliveries for this dispatch. It is not addressed to your assigned hierarchy node.',
-        );
-      }
+    if (!assignment || assignment.nodeId !== log.dispatchEntry.toPointId) {
+      throw new ForbiddenException(
+        'You are not authorized to record deliveries for this dispatch. It is not addressed to your assigned hierarchy node.',
+      );
     }
 
     const updated = await this.prisma.deliveryLog.update({
-      where: { id },
+      where: {
+        id,
+      },
       data: {
         status: dto.status,
         remarks: dto.remarks ?? '',
@@ -175,7 +226,10 @@ export class DeliveryService {
 
   private async autoCompleteIfResolved(dispatchEntryId: number): Promise<void> {
     const pendingCount = await this.prisma.deliveryLog.count({
-      where: { dispatchEntryId, status: DeliveryLogStatus.Pending },
+      where: {
+        dispatchEntryId,
+        status: DeliveryLogStatus.Pending,
+      },
     });
 
     if (pendingCount > 0) {
@@ -183,8 +237,12 @@ export class DeliveryService {
     }
 
     const dispatch = await this.prisma.dispatchEntry.findUnique({
-      where: { id: dispatchEntryId },
-      select: { status: true },
+      where: {
+        id: dispatchEntryId,
+      },
+      select: {
+        status: true,
+      },
     });
 
     if (
@@ -193,8 +251,12 @@ export class DeliveryService {
         dispatch.status === DispatchStatus.Discrepancy)
     ) {
       await this.prisma.dispatchEntry.update({
-        where: { id: dispatchEntryId },
-        data: { status: DispatchStatus.Completed },
+        where: {
+          id: dispatchEntryId,
+        },
+        data: {
+          status: DispatchStatus.Completed,
+        },
       });
     }
   }

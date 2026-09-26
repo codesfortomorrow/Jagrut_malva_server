@@ -35,6 +35,9 @@ import { ADMIN_ROLE_NAME } from '../roles/privilege-catalog.constant';
 const ADMIN_USER_INCLUDE: Prisma.AdminInclude = {
   role: true,
   designationAssignments: {
+    where: {
+      isActive: true,
+    },
     include: {
       node: true,
       designation: true,
@@ -49,7 +52,9 @@ const ADMIN_USER_INCLUDE: Prisma.AdminInclude = {
         },
       },
     },
-    orderBy: [{ isActive: 'desc' }, { assignedAt: 'desc' }],
+    orderBy: {
+      assignedAt: 'desc',
+    },
   },
 };
 
